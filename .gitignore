@@ -10,6 +10,7 @@
 
 # Mac OS
 .DS_Store
+*.asc
 
 # Example code in package build process
 *-Ex.R
