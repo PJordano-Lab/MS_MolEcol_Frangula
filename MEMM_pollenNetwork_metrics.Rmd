@@ -284,10 +284,10 @@ Sys.time() - TIME
 TIME <- Sys.time()
 # Modularity for observed matrix.
 # Give here the mean observed modularity values.
-    M.JV <- 0.65181 # 9 modules
-    M.SAUC <-  # * modules
-    M.PL <-  0.79152 # 11 modules
-    M.ZP <-  # * modules
+    M.JV <- 0.69005 # 9 modules
+    M.SAUC <- 0.69737 # 18 modules
+    M.PL <- 0.79659 # 10 modules
+    M.ZP <- 0.78765 # 11 modules
 
     Msig <- function (mat, mlike)  {
     # mat is the input matrix for which M is tested
@@ -302,6 +302,9 @@ TIME <- Sys.time()
         "P=  ",formatC(p, digits = 8, format = "e"))
 } 
 Msig(mat.JV, M.JV)
+Msig(mat.SAUC, M.SAUC)
+Msig(mat.PL, M.PL)
+Msig(mat.ZP, M.ZP)
 
 Sys.time() - TIME 
 #----------------------------------------------------------------------
