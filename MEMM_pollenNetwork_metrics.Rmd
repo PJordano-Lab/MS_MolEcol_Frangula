@@ -256,92 +256,40 @@ modularity <- function (mat) {
 }
 
 mymat <- mat.JV
-modularity(mymat)
-modularity(pre2007[,4:102])
-modularity(apis2007[,4:102])
-modularity(pre2008[,4:102])
-modularity(apis2008[,4:102])
-modularity(subpre2009[,4:102])
-modularity(apis2009[,4:102])
-modularity(pre2008sub2009)
-modularity(apis20082009)
-#
-# Testing modularity significance (@30 min for 100 null replicates)
-require(bipartite)
-TIME <- Sys.time()
-mat <- pre2007[,4:102]     # Assign the observed matrix
-res <- computeModules(mat) # Modularity for observed matrix
-nulls <- nullmodel(mat, N=100, method=3)
-modules.nulls <- sapply(nulls, computeModules)
-like.nulls <- sapply(modules.nulls, function(x) x@likelihood)
-z <- (res@likelihood - mean(like.nulls))/sd(like.nulls)
-p <- 2*pnorm(-abs(z))
-cat(p," ")
+# mymat <- mat.PL
+# mymat <- mat.SAUC
+# mymat <- mat.ZP
+modularity(mat.JV)
+modularity(mat.PL)
+modularity(mat.SAUC)
+modularity(mat.ZP)
+
+# --------------------------------------------------------------------
 Sys.time() - TIME 
+# --------------------------------------------------------------------
+# Testing modularity significance (@30 min for 100 null replicates)
+# TIME <- Sys.time()
+# mat <- mymat    # Assign the observed matrix
+# res <- computeModules(mat) # Modularity for observed matrix
+# nulls <- nullmodel(mat, N=100, method=3)
+# modules.nulls <- sapply(nulls, computeModules)
+# like.nulls <- sapply(modules.nulls, function(x) x@likelihood)
+# z <- (res@likelihood - mean(like.nulls))/sd(like.nulls)
+# p <- 2*pnorm(-abs(z))
+# cat(formatC(p, digits = 8, format = "e")," ")
+# Sys.time() - TIME 
 #
 # Batch to generate the null models for modularity M significance test. ----- 
 # (for each matrix, @30 min for 100 null replicates)
 TIME <- Sys.time()
 # Modularity for observed matrix.
 # Give here the mean observed modularity values.
-    M_pre2007 <- 0.30417
-    M_apis2007 <- 0.48063
-    M_pre2008 <- 0.36591
-    M_apis2008 <- 0.44998
-    M_presub2009 <- 0.32681
-    M_apis2009 <- 0.58132
-    M_pre2008sub2009 <- 0.32213
-    M_apis20082009 <- 0.46511
-Msig <- function (mat, mlike)  {
-    # mat is the input matrix for which M is tested
-    # mlike is the observed mean M value
-    nulls <- nullmodel(mat, N=999, method=3)
-    modules.nulls <- sapply(nulls, computeModules)
-    like.nulls <- sapply(modules.nulls, function(x) x@likelihood)
-    z <- (mlike - mean(like.nulls))/sd(like.nulls)
-    p <- 2*pnorm(-abs(z))
-    cat("\n\n","P value for modularity M= ", mlike, "\n", 
-        "No. resamplings= ", N, "\n",
-        "P=  ",p)
-} 
-# --------------------------------------------------------------------
-Msig(pre2007[,4:102], M_pre2007)
-Msig(apis2007[,4:102], M_apis2007)
-Msig(pre2008[,4:102], M_pre2008)
-Msig(apis2008[,4:102], M_apis2008)
-Msig(subpre2009[,4:102], M_presub2009)
-Msig(apis2009[,4:102], M_apis2009)
-Msig(pre2008sub2009, M_pre2008sub2009)
-Msig(apis20082009, M_apis20082009)
-# --------------------------------------------------------------------
-Sys.time() - TIME 
-# --------------------------------------------------------------------
-# Testing modularity significance (@30 min for 100 null replicates)
-TIME <- Sys.time()
-mat <- newpre2007[,4:102]     # Assign the observed matrix
-res <- computeModules(mat) # Modularity for observed matrix
-nulls <- nullmodel(mat, N=100, method=3)
-modules.nulls <- sapply(nulls, computeModules)
-like.nulls <- sapply(modules.nulls, function(x) x@likelihood)
-z <- (res@likelihood - mean(like.nulls))/sd(like.nulls)
-p <- 2*pnorm(-abs(z))
-cat(formatC(p, digits = 8, format = "e")," ")
-Sys.time() - TIME 
-#
-# Batch to generate the null models for modularity M significance test. ----- 
-# (for each matrix, @30 min for 100 null replicates)
-TIME <- Sys.time()
-# Modularity for observed matrix.
-# Give here the mean observed modularity values.
-    M_pre2007 <- 0.32505
-    M_apis2007 <- 0.47675
-    M_pre2008 <- 0.37325
-    M_apis2008 <- 0.43367
-    M_presub2009 <- 0.31420
-    M_apis2009 <- 0.47407
-    M_pre2008sub2009 <- 0.31749
-    M_apis20082009 <- 0.46129
-Msig <- function (mat, mlike)  {
+    M.JV <- 0.65181 # 9 modules
+    M.SAUC <-  # * modules
+    M.PL <-  0.79152 # 11 modules
+    M.ZP <-  # * modules
+
+    Msig <- function (mat, mlike)  {
     # mat is the input matrix for which M is tested
     # mlike is the observed mean M value
     nulls <- nullmodel(mat, N=99, method=3)
@@ -353,14 +301,8 @@ Msig <- function (mat, mlike)  {
         "No. resamplings= ", N, "\n",
         "P=  ",formatC(p, digits = 8, format = "e"))
 } 
-Msig(pre2007[,4:102], M_pre2007)
-Msig(apis2007[,4:102], M_apis2007)
-Msig(pre2008[,4:102], M_pre2008)
-Msig(apis2008[,4:102], M_apis2008)
-Msig(subpre2009[,4:102], M_presub2009)
-Msig(apis2009[,4:102], M_apis2009)
-Msig(pre2008sub2009, M_pre2008sub2009)
-Msig(apis20082009, M_apis20082009)
+Msig(mat.JV, M.JV)
+
 Sys.time() - TIME 
 #----------------------------------------------------------------------
 
