@@ -26,21 +26,21 @@ quant2bin<-function(matr)
 }
 
 #--------------------------------------#
-matingJVq<-as.matrix(read.table("./pollenNetwork_matrices/JV_pollenNetwork_median.txt",header=T,sep="\t",dec=".",na.strings="NA", row.names=1))
+matingJVq<-as.matrix(read.table("data/pollenNetwork_matrices/JV_pollenNetwork_median.txt",header=T,sep="\t",dec=".",na.strings="NA", row.names=1))
 matingJV<-quant2bin(matingJVq)     # Binary matrix with threshold value. Row:father/column:mother
 matingJVPJ<-quant2binPJ(matingJVq) # Quant. matrix with threshold value
 
 #OJO añade una x delante de los nombre de las columnas ¿????
-matingSaucq<-as.matrix(read.table("./pollenNetwork_matrices/SAUC_pollenNetwork_median.txt",header=T,sep="\t",dec=".",na.strings="NA",row.names=1)) 
+matingSaucq<-as.matrix(read.table("data/pollenNetwork_matrices/SAUC_pollenNetwork.txt",header=T,sep="\t",dec=".",na.strings="NA",row.names=1)) 
 colnames(matingSaucq) <- rownames(matingSaucq)
 matingSauc<-quant2bin(matingSaucq)     # Binary matrix with threshold value
 matingSaucPJ<-quant2binPJ(matingSaucq) # Quant. matrix with threshold value
 
-matingPLq<-as.matrix(read.table("./pollenNetwork_matrices/PL_pollenNetwork_median.txt",header=T,sep="\t",dec=".",na.strings="NA",row.names=1))
+matingPLq<-as.matrix(read.table("data/pollenNetwork_matrices/PL_pollenNetwork_median.txt",header=T,sep="\t",dec=".",na.strings="NA",row.names=1))
 matingPL<-quant2bin(matingPLq)     # Binary matrix with threshold value
 matingPLPJ<-quant2binPJ(matingPLq) # Quant. matrix with threshold value
 
-matingZPq<-as.matrix(read.table("./pollenNetwork_matrices/ZP_pollenNetwork_median.txt",header=T,sep="\t",dec=".",na.strings="NA",row.names=1))
+matingZPq<-as.matrix(read.table("data/pollenNetwork_matrices/ZP_pollenNetwork_median.txt",header=T,sep="\t",dec=".",na.strings="NA",row.names=1))
 matingZP<-quant2bin(matingZPq)     # Binary matrix with threshold value
 matingZPPJ<-quant2binPJ(matingZPq) # Quant. matrix with threshold value
 

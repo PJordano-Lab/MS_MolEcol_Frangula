@@ -121,7 +121,7 @@ At node level I estimate degree and closeness of the mating network that was bui
 require(bipartite)
 require(igraph)
 
-pollenNetwork=function(file1, file2, file3, file4, nloc, nql, nqt, nqw, forBreaks){
+pollenNetwork= function(file1, file2, file3, file4, nloc, nql, nqt, nqw, forBreaks){
   
   ParamDisp=read.delim(file1,header=FALSE, sep=" ")
   
