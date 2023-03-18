@@ -1,0 +1,405 @@
+---
+title: "MEMM_pollenNetwork_metrics"
+author: "EvaM"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+# ORIGINAL FUNCTION:
+Function created by Etienne to estimate mating probaility matrix for each tree pair, according to previous estimations of b, delta, s, individual fecundities, weighting variables.
+
+The original function uses delta, b and s median from the parameter distributions
+
+
+# ADAPTED FUNCTION TO RESAMPLE b AND delta
+
+```{r mating function, include=FALSE}
+pollenNetworkBS=function(delta, b, self, file2, file3, #file4, 
+                         nloc, nql, nqt, nqw, forBreaks){
+
+  aa=delta*gamma(2/b)/gamma(3/b)
+  
+  IndivFec=read.delim(file2,header=FALSE, sep=" ")
+  np=dim(IndivFec)[2]-1
+  IndivFec = IndivFec[,2:(np+1)]
+  MeanIndiv=(apply(IndivFec,2,mean))
+  MeanIndiv =as.vector(MeanIndiv/mean(MeanIndiv))
+  
+  infop=read.delim(file3,header=FALSE, sep="\t")
+  np=dim(infop)[1]
+  ncol=dim(infop)[2]
+  xy = infop[,nloc*2+2:3]
+  nomp = as.vector(infop[,1])
+  poids=rep(1,np)
+  if (nqw>0) {for (k in 1:nqw){poids=poids*as.vector(infop[,1+nloc*2+nql+k])}}
+  
+  dist=array(rep(0,np*np),dim=c(np,np))
+  for (k in 1:np){
+    for (l in 1:np){
+      dist[k,l]=sqrt((xy[k,1]-xy[l,1])^2+(xy[k,2]-xy[l,2])^2)
+    };};
+  for (m in 1:np) {dist[m,m]=Inf};
+  
+  mat=exp(-dist^b/aa^b)*(MeanIndiv%*%matrix(1,1,np))
+  total=apply(mat,2,sum);
+  
+  mat=(1-self)*mat/(matrix(1,np,1)%*%total)
+  for (m in 1:np) {mat[m,m]=self};
+  
+  ncoul=length(forBreaks)-1
+  #image(t(mat[np:1,]),breaks=forBreaks,col=terrain.colors(ncoul))
+  return= mat
+}
+  #write(c("tree",nomp),file4,ncolumns=np+1, sep="\t")
+  #write(t(cbind(array(nomp,c(np,1)),mat)),file4,ncolumns=np+1, append=TRUE, sep="\t")
+
+```
+
+# BOOSTRAPPING DISPERSAL PARAMETERS FOR NETWORK FUNCTION 
+
+Take n-sample of b and delta parameters and run pollenNetwork function to each pair. Return several network metrics for each matrix. 
+
+## BOOSTRAPPING TO ESTIMATE POPULATION-LEVEL NETWORK METRICS
+
+```{r boostrapping and pop-level network metrics}
+# Load ParamDisp file for each population. Not used because is loaded directly in "params.net" function
+# JV_paramDisp <- read.table("MEMM_files/ParamDisp_JV.txt", header=FALSE)
+# colnames(JV_paramDisp) <- c("n_interation","likelihood","delta","b","m","s")
+
+require(bipartite)
+
+# Run the loop. Set the number of iterations (nbSpl) as an argument for "params.net" function 
+params.net = function (paramDispfile, file2 , file3, nbSpl = 100){
+  
+  paramDisp = read.table(paramDispfile, header=FALSE)
+  totalFileToSample=seq(from=1, to=dim(paramDisp)[1], by=1 )
+  subsample=sample(totalFileToSample, size=nbSpl, replace = F)
+
+  for (i in 1:nbSpl) {
+    line=subsample[i]
+    delta=paramDisp[i,3]
+    b=paramDisp[i,4]
+    self=paramDisp[i,6]
+
+  #file4name=paste("JV_pollenNetwork_", i, ".txt", sep="") # to save each matrix as a file (write must be active in pollenNetworkBS function)
+    mat <- pollenNetworkBS(delta, b, self, file2, file3,
+                        #file4name, 
+                        nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
+    mat[mat < 0.05] <- 0
+ 
+  # Network parameters
+    conn.mat <- networklevel(mat, index="connectance")
+    conn.w.mat <- networklevel(mat, index="weighted connectance")
+    NODF.mat <- networklevel(mat, index="NODF")
+    link.mat <- networklevel(mat, index="linkage density")
+    Sh.div.mat <- networklevel(mat, index="Shannon diversity")
+    pp <- c(conn.mat, conn.w.mat, NODF.mat, link.mat, Sh.div.mat)
+  
+    if (i == 1) params.net = pp 
+    else params.net = rbind(params.net, pp)
+
+    i = i+1
+  
+ }
+  params.net = as.data.frame(params.net, row.names = FALSE)
+  return(params.net)
+  
+}
+ 
+params.JV <- params.net(paramDispfile = "MEMM_files/ParamDisp_JV.txt", file2 = "MEMM_files/IndivFec_JV.txt", file3 = "MEMM_files/JV_adult.txt")
+params.SAUC <- params.net(paramDispfile = "MEMM_files/ParamDisp_SAUC.txt", file2 = "MEMM_files/IndivFec_SAUC.txt", file3 = "MEMM_files/SAUC_adult.txt")
+params.PL <- params.net(paramDispfile = "MEMM_files/ParamDisp_PL.txt", file2 = "MEMM_files/IndivFec_PL.txt", file3 = "MEMM_files/PL_adult.txt")
+params.ZP <- params.net(paramDispfile = "MEMM_files/ParamDisp_ZP.txt", file2 = "MEMM_files/IndivFec_ZP.txt", file3 = "MEMM_files/ZP_adult.txt")
+
+```
+
+## ESTIMATE NODE-LEVEL NETWORK METRICS: 
+At node level I estimate degree and closeness of the mating network that was built based on median parameters
+
+```{r node-level network metrics}
+
+require(bipartite)
+require(igraph)
+
+pollenNetwork=function(file1, file2, file3, file4, nloc, nql, nqt, nqw, forBreaks){
+  
+  ParamDisp=read.delim(file1,header=FALSE, sep=" ")
+  
+  ydelta=ParamDisp[,3]
+  delta=median(ydelta)
+  yb=ParamDisp[,4]
+  b=median(yb)
+  aa=delta*gamma(2/b)/gamma(3/b)
+  ys=ParamDisp[,6]
+  self=median(ys)
+  
+  IndivFec=read.delim(file2,header=FALSE, sep=" ")
+  np=dim(IndivFec)[2]-1
+  IndivFec = IndivFec[,2:(np+1)]
+  MeanIndiv=(apply(IndivFec,2,mean))
+  MeanIndiv =as.vector(MeanIndiv/mean(MeanIndiv))
+  
+  infop=read.delim(file3,header=FALSE, sep="\t")
+  np=dim(infop)[1]
+  ncol=dim(infop)[2]
+  xy = infop[,nloc*2+2:3]
+  nomp = as.vector(infop[,1])
+  poids=rep(1,np)
+  if (nqw>0) {for (k in 1:nqw){poids=poids*as.vector(infop[,1+nloc*2+nql+k])}}
+  
+  dist=array(rep(0,np*np),dim=c(np,np))
+  for (k in 1:np){
+    for (l in 1:np){
+      dist[k,l]=sqrt((xy[k,1]-xy[l,1])^2+(xy[k,2]-xy[l,2])^2)
+    };};
+  for (m in 1:np) {dist[m,m]=Inf};
+  
+  mat=exp(-dist^b/aa^b)*(MeanIndiv%*%matrix(1,1,np))
+  total=apply(mat,2,sum);
+  
+  mat=(1-self)*mat/(matrix(1,np,1)%*%total)
+  for (m in 1:np) {mat[m,m]=self};
+  
+  ncoul=length(forBreaks)-1
+  colnames(mat) <- nomp
+  rownames(mat) <- nomp[np:1]
+  
+  return(mat)
+}
+
+par(mfrow=c(2,2))
+### JV pop ###
+
+mat.JV <- pollenNetwork(file = "MEMM_files/ParamDisp_JV.txt", file2 = "MEMM_files/IndivFec_JV.txt", file3 = "MEMM_files/JV_adult.txt", file4 = "pollenNetwork_matrices/JV_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
+
+str(mat.JV)
+mat.JV[mat.JV < 0.05] <- 0
+
+# Network parameters
+deg.JV <- specieslevel(mat.JV, index="degree") # degree centrality
+clos.JV <- specieslevel(mat.JV, index="closeness") # closeness
+pp.JV <- c(deg.JV$`lower level`, clos.JV$`lower level`)
+a <- barplot(table(deg.JV$`lower level`), main="Degree Distribution (JV)", xlab="Degree", ylab="Frequency")
+
+### SAUC pop ###
+
+mat.SAUC <- pollenNetwork(file = "MEMM_files/ParamDisp_SAUC.txt", file2 = "MEMM_files/IndivFec_SAUC.txt", file3 = "MEMM_files/SAUC_adult.txt", file4 = "pollenNetwork_matrices/SAUC_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
+
+str(mat.SAUC)
+mat.SAUC[mat.SAUC < 0.05] <- 0
+
+# Network parameters
+deg.SAUC <- specieslevel(mat.SAUC, index="degree") # degree centrality
+clos.SAUC <- specieslevel(mat.SAUC, index="closeness") # closeness
+pp.SAUC <- c(deg.SAUC$`lower level`, clos.SAUC$`lower level`)
+b <- barplot(table(deg.SAUC$`lower level`), main="Degree Distribution (SAUC)", xlab="Degree", ylab="Frequency")
+
+### PL pop ###
+
+mat.PL <- pollenNetwork(file = "MEMM_files/ParamDisp_PL.txt", file2 = "MEMM_files/IndivFec_PL.txt", file3 = "MEMM_files/PL_adult.txt", file4 = "pollenNetwork_matrices/PL_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
+
+str(mat.PL)
+mat.PL[mat.PL < 0.05] <- 0
+
+# Network parameters
+deg.PL <- specieslevel(mat.PL, index="degree") # degree centrality
+clos.PL <- specieslevel(mat.PL, index="closeness") # closeness
+pp.PL <- c(deg.PL$`lower level`, clos.PL$`lower level`)
+c <- barplot(table(deg.PL$`lower level`), main="Degree Distribution (PL)", xlab="Degree", ylab="Frequency")
+
+### ZP pop ###
+
+mat.ZP <- pollenNetwork(file = "MEMM_files/ParamDisp_ZP.txt", file2 = "MEMM_files/IndivFec_ZP.txt", file3 = "MEMM_files/ZP_adult.txt", file4 = "pollenNetwork_matrices/ZP_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
+
+str(mat.ZP)
+mat.ZP[mat.ZP < 0.05] <- 0
+
+# Network parameters
+deg.ZP <- specieslevel(mat.ZP, index="degree") # degree centrality
+clos.ZP <- specieslevel(mat.ZP, index="closeness") # closeness
+pp.ZP <- c(deg.ZP$`lower level`, clos.ZP$`lower level`)
+#d <- ggplot(data= deg.ZP$`lower level`) +
+#  geom_histogram(binwidth = 1, fill = "lightblue", color = "black")
+
+d <- barplot(table(deg.ZP$`lower level`), main="Degree Distribution (ZP)", xlab="Degree", ylab="Frequency")
+
+
+```
+
+## TESTING DIFFERENCES AMONG POPULATIONS
+
+```{r population comparison}
+library(dplyr)
+# JV pop
+# Compute mean and 95% CI for each variable in params.JV
+means <- apply(params.JV, 2, mean)
+cis <- t(apply(params.JV, 2, function(x) t.test(x, conf.level = 0.95)$conf.int))
+
+# Combine means and CI into a data frame
+CI.JV <- data.frame(means, cis)
+
+# SAUC pop
+# Compute mean and 95% CI for each variable in params.SAUC
+means <- apply(params.SAUC, 2, mean)
+cis <- t(apply(params.SAUC, 2, function(x) t.test(x, conf.level = 0.95)$conf.int))
+
+# Combine means and CI into a data frame
+CI.SAUC <- data.frame(means, cis)
+
+# PL pop
+# Compute mean and 95% CI for each variable in params.PL
+means <- apply(params.PL, 2, mean)
+cis <- t(apply(params.PL, 2, function(x) t.test(x, conf.level = 0.95)$conf.int))
+
+# Combine means and CI into a data frame
+CI.PL <- data.frame(means, cis)
+
+# ZP pop
+# Compute mean and 95% CI for each variable in params.ZP
+means <- apply(params.ZP, 2, mean)
+cis <- t(apply(params.ZP, 2, function(x) t.test(x, conf.level = 0.95)$conf.int))
+
+# Combine means and CI into a data frame
+CI.ZP <- data.frame(means, cis)
+
+CI.all <- cbind(CI.JV,CI.SAUC,CI.PL,CI.ZP)
+write.table(CI.all,"network_parameters_CI.txt", sep = ",")
+---------------------------------------------------------
+
+params.JV <- params.JV %>%
+  mutate(pop = "JV")
+params.SAUC <- params.SAUC %>%
+  mutate(pop = "SAUC") %>%
+  select(-pop)
+params.PL <- params.PL %>%
+  mutate(pop = "PL") %>%
+  select(-pop)
+params.ZP <- params.ZP %>%
+  mutate(pop = "ZP") %>%
+  select(-pop)
+
+params.all <- rbind(params.JV,params.SAUC,params.PL,params.ZP)
+colnames(params.all) <- c("connectance", "w.connectance", "NODF", "linkage.dens", "Shannon.div", "pop")
+
+# Perform an ANOVA test for each network variable
+aov.conn <- aov(lm(connectance ~ pop, data = params.all))
+aov.conn.w <- aov(lm(w.connectance ~ pop, data = params.all))
+aov.NODF <- aov(lm(NODF ~ pop, data = params.all))
+aov.link <- aov(lm(linkage.dens ~ pop, data = params.all))
+aov.Shan <- aov(lm(Shannon.div ~ pop, data = params.all))
+
+summary(aov.conn)
+summary(aov.conn.w)
+summary(aov.NODF)
+summary(aov.link)
+summary(aov.Shan)
+
+# Conduct the Tukey's HSD test
+tuk.conn <- TukeyHSD(aov.conn)
+tuk.conn.w <- TukeyHSD(aov.conn.w)
+tuk.NODF <- TukeyHSD(aov.NODF)
+tuk.link <- TukeyHSD(aov.link)
+tuk.Shan <- TukeyHSD(aov.Shan)
+
+plot(tuk.conn)
+plot(tuk.conn.w)
+plot(tuk.NODF)
+plot(tuk.link)
+plot(tuk.Shan)
+
+# Barplot with error bars
+library(ggplot2)
+
+### Connectance ###
+# Calculate the mean and standard deviation for each level of the 'pop' variable
+mean.conn <- aggregate(connectance ~ pop, data = params.all, FUN = mean)
+sd.conn <- aggregate(connectance ~ pop, data = params.all, FUN = sd)
+
+# Merge the two data frames by the 'pop' variable
+result1 <- merge(mean.conn, sd.conn, by = "pop")
+
+# Rename the columns for clarity
+names(result1) <- c("pop", "conn.mean", "sd")
+
+# Most basic error bar
+ggplot(result1) +
+    geom_bar( aes(x=pop, y=conn.mean), stat="identity", fill="skyblue", alpha=0.7) +
+    geom_errorbar( aes(x=pop, ymin=conn.mean-sd, ymax=conn.mean+sd), width=0.4, colour="orange", alpha=0.9) +
+  ylab("connectance") + 
+  ggtitle("Connectance")
+
+### Weighted connectance ###
+# Calculate the mean and standard deviation for each level of the 'pop' variable
+mean.conn.w <- aggregate(w.connectance ~ pop, data = params.all, FUN = mean)
+sd.conn.w <- aggregate(w.connectance ~ pop, data = params.all, FUN = sd)
+
+# Merge the two data frames by the 'pop' variable
+result2 <- merge(mean.conn.w, sd.conn.w, by = "pop")
+
+# Rename the columns for clarity
+names(result2) <- c("pop", "conn.w.mean", "sd")
+
+# Most basic error bar
+ggplot(result2) +
+    geom_bar( aes(x=pop, y=conn.w.mean), stat="identity", fill="skyblue", alpha=0.7) +
+    geom_errorbar( aes(x=pop, ymin=conn.w.mean-sd, ymax=conn.w.mean+sd), width=0.4, colour="orange", alpha=0.9) +
+  ylab("weigthed connect") + 
+  ggtitle("Weighted connectance")
+
+### NODF ###
+# Calculate the mean and standard deviation for each level of the 'pop' variable
+mean.NODF <- aggregate(NODF ~ pop, data = params.all, FUN = mean)
+sd.NODF <- aggregate(NODF ~ pop, data = params.all, FUN = sd)
+
+# Merge the two data frames by the 'pop' variable
+result3 <- merge(mean.NODF, sd.NODF, by = "pop")
+
+# Rename the columns for clarity
+names(result3) <- c("pop", "NODF.mean", "sd")
+
+# Most basic error bar
+ggplot(result3) +
+    geom_bar( aes(x=pop, y=NODF.mean), stat="identity", fill="skyblue", alpha=0.7) +
+    geom_errorbar( aes(x=pop, ymin=NODF.mean-sd, ymax=NODF.mean+sd), width=0.4, colour="orange", alpha=0.9) +
+  ylab("NODF") + 
+  ggtitle("NODF")
+
+### Linkage density ###
+# Calculate the mean and standard deviation for each level of the 'pop' variable
+mean.linkage.dens <- aggregate(linkage.dens ~ pop, data = params.all, FUN = mean)
+sd.linkage.dens <- aggregate(linkage.dens ~ pop, data = params.all, FUN = sd)
+
+# Merge the two data frames by the 'pop' variable
+result4 <- merge(mean.linkage.dens, sd.linkage.dens, by = "pop")
+
+# Rename the columns for clarity
+names(result4) <- c("pop", "linkage.dens.mean", "sd")
+
+# Most basic error bar
+ggplot(result4) +
+    geom_bar( aes(x=pop, y=linkage.dens.mean), stat="identity", fill="skyblue", alpha=0.7) +
+    geom_errorbar( aes(x=pop, ymin=linkage.dens.mean-sd, ymax=linkage.dens.mean+sd), width=0.4, colour="orange", alpha=0.9) +
+  ylab("linkage density") + 
+  ggtitle("Linkage density")
+
+### Shannon.diversity ###
+# Calculate the mean and standard deviation for each level of the 'pop' variable
+mean.Shannon.div <- aggregate(Shannon.div ~ pop, data = params.all, FUN = mean)
+sd.Shannon.div <- aggregate(Shannon.div ~ pop, data = params.all, FUN = sd)
+
+# Merge the two data frames by the 'pop' variable
+result5 <- merge(mean.Shannon.div, sd.Shannon.div, by = "pop")
+
+# Rename the columns for clarity
+names(result5) <- c("pop", "Shannon.div.mean", "sd")
+
+# Most basic error bar
+ggplot(result5) +
+    geom_bar( aes(x=pop, y=Shannon.div.mean), stat="identity", fill="skyblue", alpha=0.7) +
+    geom_errorbar( aes(x=pop, ymin=Shannon.div.mean-sd, ymax=Shannon.div.mean+sd), width=0.4, colour="orange", alpha=0.9) +
+  ylab("Shannon.div") + 
+  ggtitle("Shannon diversity")
+
+```
+
+

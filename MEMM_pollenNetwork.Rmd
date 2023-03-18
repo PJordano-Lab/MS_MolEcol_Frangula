@@ -1,0 +1,86 @@
+---
+title: "MEMM_pollenNetwork"
+author: "EvaM"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# PREPARING MEMM DATA MATRICES: mating threshold 
+Code coming from:
+- genetic_matingweb.R, 
+- vectorize.R (Rocio > MS_Frangula/MS_Tesis_Rocio#1/Analisis) 
+
+```{r matrix with threshold, include=FALSE}
+# Previously setting a threshold to matrix values:
+quant2bin<-function(matr)
+{
+  cn=colnames(matr)
+  rn=rownames(matr)
+  ij<-which(matr>=0.05,arr.ind=T) # Adjust here the threshold value for mating.
+  #  ij<-which(matr!=0,arr.ind=T)
+  matrb<-matrix(0,dim(matr)[1],dim(matr)[2])
+  matrb[ij]<-1
+  colnames(matrb)=cn
+  rownames(matrb)=rn
+  return(matrb)
+}
+
+#--------------------------------------#
+matingJVq<-as.matrix(read.table("./pollenNetwork_matrices/JV_pollenNetwork_median.txt",header=T,sep="\t",dec=".",na.strings="NA", row.names=1))
+matingJV<-quant2bin(matingJVq)     # Binary matrix with threshold value. Row:father/column:mother
+matingJVPJ<-quant2binPJ(matingJVq) # Quant. matrix with threshold value
+
+#OJO añade una x delante de los nombre de las columnas ¿????
+matingSaucq<-as.matrix(read.table("./pollenNetwork_matrices/SAUC_pollenNetwork_median.txt",header=T,sep="\t",dec=".",na.strings="NA",row.names=1)) 
+colnames(matingSaucq) <- rownames(matingSaucq)
+matingSauc<-quant2bin(matingSaucq)     # Binary matrix with threshold value
+matingSaucPJ<-quant2binPJ(matingSaucq) # Quant. matrix with threshold value
+
+matingPLq<-as.matrix(read.table("./pollenNetwork_matrices/PL_pollenNetwork_median.txt",header=T,sep="\t",dec=".",na.strings="NA",row.names=1))
+matingPL<-quant2bin(matingPLq)     # Binary matrix with threshold value
+matingPLPJ<-quant2binPJ(matingPLq) # Quant. matrix with threshold value
+
+matingZPq<-as.matrix(read.table("./pollenNetwork_matrices/ZP_pollenNetwork_median.txt",header=T,sep="\t",dec=".",na.strings="NA",row.names=1))
+matingZP<-quant2bin(matingZPq)     # Binary matrix with threshold value
+matingZPPJ<-quant2binPJ(matingZPq) # Quant. matrix with threshold value
+
+```
+
+# MATING NETWORK GRAPH: Drawing arrows for mating patterns according to a threshold value of MEMM probability.
+Code coming from: arrows_Pedro_OK.R
+
+```{r arrows}
+library(diagram)
+
+JV<-read.table("./coordinates/JV.txt",header=T,row.names=1,sep="\t",dec=".",na.strings="NA")
+
+plot(JV$x,JV$y)  # This plots the map
+     #xlim=c(266732,268111),ylim=c(4044473,4045145)) 
+JVcoord <- cbind(JV$x,JV$y)
+pp2<-as.matrix(cbind(JVcoord[,1],0)) # Creates dataset for plotting along line
+pp<-as.matrix(JVcoord[,1:2])  # Creates dataset for plotting on the map
+n<-length(JVcoord[,1]) # Number of trees in dataset
+
+# Function to iterate
+foo <- function (j) {
+    zz<- pp[j,]
+    #for (i in j+1:n) {
+    for (i in 1:n) {
+        if (i!=j)
+            if (matingJV[j, i]!= 0)  # GIVE THRESHOLD VALUE HERE!!!
+                #           curvedarrow(from=pp[i,], to=pp[j,],
+                curvedarrow(from=zz, to=pp[i,],
+                            lwd=0.5, endhead=F, arr.width=0,
+                            lcol=rgb(0,0,1,0.4), curve= 0.25,  # lcol="blue",
+                            arr.pos=1,arr.lwd=0.1)
+    }
+}
+
+# Now iterate over all pollen sources. This is to avoid the error with
+# the arrow function aborting in the double loop.
+for (i in 1:n) {
+    foo(i)
+}
+
+```
+

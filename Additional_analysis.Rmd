@@ -1,0 +1,791 @@
+---
+title: "Additional_analysis"
+author: "EvaM"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+# ALTITUDE AT TREE LOCATIONS
+
+I extract altitude for each tree from a Digital Elevation Model (5m resolution MDT-CNIG) based on their coordinates.
+
+## JV: Altitud and sector classification
+
+```{r JV altitude}
+
+library(raster); library(elevatr); library(sp); library(rgdal)
+
+# Load data
+JV_coord <- read.table("coordinates/JV.txt", header = TRUE, sep = "\t", dec = ".")
+head(JV_coord)
+JV_xy <- JV_coord[c("x", "y")]
+
+# Set the CRS of the input data
+prj_string <- "+proj=utm +zone=30 +ellps=GRS80 +units=m +no_defs"
+JV_xy_prj <- SpatialPoints(JV_xy, proj4string = CRS(prj_string))
+
+# Transform input data to latitude and longitude
+ll_prj <- CRS("+proj=longlat +datum=WGS84")
+JV_ll <- spTransform(JV_xy_prj, ll_prj)
+
+# Load the ASCII file
+dem <- raster("Modelo_Digital_Elevaciones/PNOA_MDT05_ETRS89_HU30_1063_LID.asc")
+
+# Extract the altitude values at a set of locations (e.g., a SpatialPoints object)
+altitude <- extract(dem, JV_xy_prj)
+
+# Add elevation data to the original data frame
+JV_xy$altitude <- altitude
+
+#Estimate mean elevation point in the population stream
+mean_alt <- (max(JV_xy$altitude)+min(JV_xy$altitude))/2
+
+# Create a new column "altitude_type" that assigns "upper" or "lower" based on the mean altitude value
+JV_xy$altitude_type <- ifelse(JV_xy$altitude > mean_alt, "upper", "lower")
+JV_xy$id <- JV_coord$id
+JV_sector <- select(JV_xy,-y)
+
+# Data to test differences in DBH among sectors
+JV_data <- cbind(JV_xy,JV_coord[,4:8])
+anova <- aov(diameter ~ altitude_type, data = JV_data)
+print(summary(anova))
+boxplot(JV_data$diameter~JV_data$altitude_type)
+tapply(JV_data$diameter,JV_data$altitude_type,mean)
+
+# reorder the dataframe to have ID in first column
+library(dplyr)
+
+JV_data <- JV_data %>% 
+  select(id, x:density2)
+
+# NOT RUN ##################################################
+
+# Alternatively we can assign the 50% of trees in each sector. 
+# Create a new column "altitude_type" that assigns "upper" or "lower" to 50% rows up and lower
+#JV_coord2 <- JV_coord %>% mutate(altitude_type = ifelse(row_number() <= round(nrow(JV_coord)/2), "upper", "lower"))
+
+#JV_sector <-select(JV_coord2,id,altitude_type)
+# Load this data "JV_sector" to join it to genotype files
+```
+
+## SAUC: Altitud and sector classification
+
+```{r SAUC altitude}
+
+# Load data
+SAUC_coord <- read.table("coordinates/SAUC.txt", header = TRUE, sep = "\t", dec = ".")
+head(SAUC_coord)
+SAUC_xy <- SAUC_coord[c("x", "y")]
+
+# Set the CRS of the input data
+prj_string <- "+proj=utm +zone=30 +ellps=GRS80 +units=m +no_defs"
+SAUC_xy_prj <- SpatialPoints(SAUC_xy, proj4string = CRS(prj_string))
+
+# Transform input data to latitude and longitude
+ll_prj <- CRS("+proj=longlat +datum=WGS84")
+SAUC_ll <- spTransform(SAUC_xy_prj, ll_prj)
+
+# Load the ASCII file
+dem <- raster("Modelo_Digital_Elevaciones/PNOA_MDT05_ETRS89_HU30_1063_LID.asc")
+
+# Extract the altitude values at a set of locations (e.g., a SpatialPoints object)
+altitude <- extract(dem, SAUC_xy_prj)
+
+# Add elevation data to the original data frame
+SAUC_xy$altitude <- altitude
+
+#Estimate mean elevation point in the population stream
+mean_alt <- (max(SAUC_xy$altitude)+min(SAUC_xy$altitude))/2
+
+# Create a new column "altitude_type" that assigns "upper" or "lower" based on the mean altitude value
+SAUC_xy$altitude_type <- ifelse(SAUC_xy$altitude > mean_alt, "upper", "lower")
+SAUC_xy$id <- SAUC_coord$id
+SAUC_sector <- select(SAUC_xy,-y)
+
+# Data to test differences in DBH among sectors
+SAUC_data <- cbind(SAUC_xy,SAUC_coord[,4:8])
+anova <- aov(diameter ~ altitude_type, data = SAUC_data)
+print(summary(anova))
+boxplot(SAUC_data$diameter~SAUC_data$altitude_type)
+tapply(SAUC_data$diameter,SAUC_data$altitude_type,mean)
+
+# reorder the dataframe to have ID in first column
+SAUC_data <- SAUC_data %>% 
+  select(id, x:density2)
+
+# NOT RUN ##################################################
+
+# Alternatively we can assign the 50% of trees in each sector. 
+# Create a new column "altitude_type" that assigns "upper" or "lower" to 50% rows up and lower
+#SAUC_coord2 <- SAUC_coord %>% mutate(altitude_type = ifelse(row_number() <= round(nrow(SAUC_coord)/2), "upper", "lower"))
+
+#SAUC_sector <-select(SAUC_coord2,id,altitude_type)
+# Load this data "SAUC_sector" to join it to genotype files
+```
+
+
+## PL: Altitud and sector classification
+
+```{r PL altitude}
+
+# Load data
+PL_coord <- read.table("coordinates/PL.txt", header = TRUE, sep = "\t", dec = ".")
+head(PL_coord)
+PL_xy <- PL_coord[c("x", "y")]
+
+# Set the CRS of the input data
+prj_string <- "+proj=utm +zone=30 +ellps=GRS80 +units=m +no_defs"
+PL_xy_prj <- SpatialPoints(PL_xy, proj4string = CRS(prj_string))
+
+# Transform input data to latitude and longitude
+ll_prj <- CRS("+proj=longlat +datum=WGS84")
+PL_ll <- spTransform(PL_xy_prj, ll_prj)
+
+# Load the ASCII file
+dem <- raster("Modelo_Digital_Elevaciones/PNOA_MDT05_ETRS89_HU30_1063_LID.asc")
+
+# Extract the altitude values at a set of locations (e.g., a SpatialPoints object)
+altitude <- extract(dem, PL_xy_prj)
+
+# Add elevation data to the original data frame
+PL_xy$altitude <- altitude
+
+#Estimate mean elevation point in the population stream
+mean_alt <- (max(PL_xy$altitude)+min(PL_xy$altitude))/2
+
+# Create a new column "altitude_type" that assigns "upper" or "lower" based on the mean altitude value
+PL_xy$altitude_type <- ifelse(PL_xy$altitude > mean_alt, "upper", "lower")
+PL_xy$id <- PL_coord$id
+PL_sector <- select(PL_xy,-y)
+
+# Data to test differences in DBH among sectors
+PL_data <- cbind(PL_xy,PL_coord[,4:8])
+anova <- aov(diameter ~ altitude_type, data = PL_data)
+print(summary(anova))
+boxplot(PL_data$diameter~PL_data$altitude_type)
+tapply(PL_data$diameter,PL_data$altitude_type,mean)
+
+# reorder the dataframe to have ID in first column
+PL_data <- PL_data %>% 
+  select(id, x:density2)
+
+# NOT RUN ##################################################
+
+# Alternatively we can assign the 50% of trees in each sector. 
+# Create a new column "altitude_type" that assigns "upper" or "lower" to 50% rows up and lower
+#PL_coord2 <- PL_coord %>% mutate(altitude_type = ifelse(row_number() <= round(nrow(PL_coord)/2), "upper", "lower"))
+
+#PL_sector <-select(PL_coord2,id,altitude_type)
+# Load this data "PL_sector" to join it to genotype files
+```
+
+## ZP: Altitud and sector classification
+
+```{r ZP altitude}
+
+# Load data
+ZP_coord <- read.table("coordinates/ZAP.txt", header = TRUE, sep = "\t", dec = ".")
+head(ZP_coord)
+ZP_xy <- ZP_coord[c("x", "y")]
+
+# Set the CRS of the input data
+prj_string <- "+proj=utm +zone=30 +ellps=GRS80 +units=m +no_defs"
+ZP_xy_prj <- SpatialPoints(ZP_xy, proj4string = CRS(prj_string))
+
+# Transform input data to latitude and longitude
+ll_prj <- CRS("+proj=longlat +datum=WGS84")
+ZP_ll <- spTransform(ZP_xy_prj, ll_prj)
+
+# Load the ASCII file
+dem <- raster("Modelo_Digital_Elevaciones/PNOA_MDT05_ETRS89_HU30_1070_LID.asc")
+
+# Extract the altitude values at a set of locations (e.g., a SpatialPoints object)
+altitude <- extract(dem, ZP_xy_prj)
+
+# Add elevation data to the original data frame
+ZP_xy$altitude <- altitude
+
+#Estimate mean elevation point in the population stream
+mean_alt <- (max(ZP_xy$altitude)+min(ZP_xy$altitude))/2
+
+# Create a new column "altitude_type" that assigns "upper" or "lower" based on the mean altitude value
+ZP_xy$altitude_type <- ifelse(ZP_xy$altitude > mean_alt, "upper", "lower")
+ZP_xy$id <- ZP_coord$id
+ZP_sector <- select(ZP_xy,-y)
+
+# Data to test differences in DBH among sectors
+ZP_data <- cbind(ZP_xy,ZP_coord[,4:8])
+anova <- aov(diameter ~ altitude_type, data = ZP_data)
+print(summary(anova))
+boxplot(ZP_data$diameter~ZP_data$altitude_type)
+tapply(ZP_data$diameter,ZP_data$altitude_type,mean)
+
+# reorder the dataframe to have ID in first column
+ZP_data <- ZP_data %>% 
+  select(id, x:density2)
+
+# NOT RUN ##################################################
+
+# Alternatively we can assign the 50% of trees in each sector. 
+# Create a new column "altitude_type" that assigns "upper" or "lower" to 50% rows up and lower
+#ZP_coord2 <- ZP_coord %>% mutate(altitude_type = ifelse(row_number() <= round(nrow(ZP_coord)/2), "upper", "lower"))
+
+#ZP_sector <-select(ZP_coord2,id,altitude_type)
+# Load this data "ZP_sector" to join it to genotype files
+```
+
+```{r all pop data}
+# Combine all data in a single data.frame
+all_data <- rbind.data.frame(JV_data,SAUC_data,PL_data,ZP_data)
+all_data <- all_data %>%
+  mutate(pop = substr(id,1,2))
+
+# Test differences in dbf among sectors
+library(nlme)
+# Pop as random effect
+m1 <- lme(diameter ~ altitude,random=~1|pop, data = all_data)
+anova(m1)
+# Without random effect
+anova <- aov(diameter ~ altitude_type, data = all_data)
+print(summary(anova))
+tapply(all_data$diameter,all_data$altitude_type,mean)
+```
+
+Save file containing altitude for each tree species and asigned sector
+
+```{r altitude file}
+# Join data from different populations
+all_altitude <- bind_rows(JV_xy,SAUC_xy,PL_xy,ZP_xy)
+
+# Save file
+write.table(all_altitude, "coordinates/allPop_altitude.txt", sep="\t")
+```
+
+
+# GENETIC DIVERSITY DIFFERENCES AMONG SECTORS
+
+Estimate genetic diversity, Fis, kinship... in the upper and lower sectors and compare them.
+Some information on population genetics; https://dyerlab.github.io/applied_population_genetics/index.html
+
+```{r genetic data}
+library(dplyr)
+
+# Import genetic data from each population
+JV_gen <- read.table("genotypes/JV_adults.txt", header = TRUE, sep = "\t", dec = ".")
+SAUC_gen <- read.table("genotypes/SAUC_adults.txt", header = TRUE, sep = "\t", dec = ".")
+PL_gen <- read.table("genotypes/PL_adults.txt", header = TRUE, sep = "\t", dec = ".")
+ZP_gen <- read.table("genotypes/ZP_adults.txt", header = TRUE, sep = "\t", dec = ".")
+str(JV_gen)
+
+# Create new data frame with combined alleles
+JV_gen2 <- JV_gen %>%
+  mutate(FamA103 = paste(FamA103A, FamA103B, sep = "/")) %>%
+  mutate(FamA12 = paste(FamA12A, FamA12B, sep = "/")) %>%
+  mutate(FamB102 = paste(FamB102A, FamB102B, sep = "/")) %>%
+  mutate(FamB101 = paste(FamB101A, FamB101B, sep = "/")) %>%
+  mutate(FamA110 = paste(FamA110A, FamA110B, sep = "/")) %>%
+  mutate(VicA125 = paste(VicA125A, VicA125B, sep = "/")) %>%
+  mutate(VicA7 = paste(VicA7A, VicA7B, sep = "/")) %>%
+  mutate(VicA116 = paste(VicA116A, VicA116B, sep = "/")) %>%
+  mutate(VicA3 = paste(VicA3A, VicA3B, sep = "/")) %>%
+  mutate(NedB7 = paste(NedB7A, NedB7B, sep = "/")) %>%
+  mutate(NedA104 = paste(NedA104A, NedA104B, sep = "/")) %>%
+  mutate(NedB106 = paste(NedB106A, NedB106B, sep = "/")) %>%
+  mutate(NedB4 = paste(NedB4A, NedB4B, sep = "/")) %>%
+  mutate(PetA8 = paste(PetA8A, PetA8B, sep = "/")) %>%
+  mutate(PetB8 = paste(PetB8A, PetB8B, sep = "/")) %>%
+  mutate(PetB9 = paste(PetB9A, PetB9B, sep = "/")) %>%
+  select(tree,FamA103,FamA12,FamB102,FamB101,FamA110,VicA125,VicA7,VicA116,VicA3,NedB7,NedA104,NedB106,NedB4,PetA8,PetB8,PetB9)
+
+str(JV_gen2)
+
+SAUC_gen2 <- SAUC_gen %>%
+  mutate(FamA103 = paste(FamA103A, FamA103B, sep = "/")) %>%
+  mutate(FamA12 = paste(FamA12A, FamA12B, sep = "/")) %>%
+  mutate(FamB102 = paste(FamB102A, FamB102B, sep = "/")) %>%
+  mutate(FamB101 = paste(FamB101A, FamB101B, sep = "/")) %>%
+  mutate(FamA110 = paste(FamA110A, FamA110B, sep = "/")) %>%
+  mutate(VicA125 = paste(VicA125A, VicA125B, sep = "/")) %>%
+  mutate(VicA7 = paste(VicA7A, VicA7B, sep = "/")) %>%
+  mutate(VicA116 = paste(VicA116A, VicA116B, sep = "/")) %>%
+  mutate(VicA3 = paste(VicA3A, VicA3B, sep = "/")) %>%
+  mutate(NedB7 = paste(NedB7A, NedB7B, sep = "/")) %>%
+  mutate(NedA104 = paste(NedA104A, NedA104B, sep = "/")) %>%
+  mutate(NedB106 = paste(NedB106A, NedB106B, sep = "/")) %>%
+  mutate(NedB4 = paste(NedB4A, NedB4B, sep = "/")) %>%
+  mutate(PetA8 = paste(PetA8A, PetA8B, sep = "/")) %>%
+  mutate(PetB8 = paste(PetB8A, PetB8B, sep = "/")) %>%
+  mutate(PetB9 = paste(PetB9A, PetB9B, sep = "/")) %>%
+  select(tree,FamA103,FamA12,FamB102,FamB101,FamA110,VicA125,VicA7,VicA116,VicA3,NedB7,NedA104,NedB106,NedB4,PetA8,PetB8,PetB9)
+
+PL_gen2 <- PL_gen %>%
+  mutate(FamA103 = paste(FamA103A, FamA103B, sep = "/")) %>%
+  mutate(FamA12 = paste(FamA12A, FamA12B, sep = "/")) %>%
+  mutate(FamB102 = paste(FamB102A, FamB102B, sep = "/")) %>%
+  mutate(FamB101 = paste(FamB101A, FamB101B, sep = "/")) %>%
+  mutate(FamA110 = paste(FamA110A, FamA110B, sep = "/")) %>%
+  mutate(VicA125 = paste(VicA125A, VicA125B, sep = "/")) %>%
+  mutate(VicA7 = paste(VicA7A, VicA7B, sep = "/")) %>%
+  mutate(VicA116 = paste(VicA116A, VicA116B, sep = "/")) %>%
+  mutate(VicA3 = paste(VicA3A, VicA3B, sep = "/")) %>%
+  mutate(NedB7 = paste(NedB7A, NedB7B, sep = "/")) %>%
+  mutate(NedA104 = paste(NedA104A, NedA104B, sep = "/")) %>%
+  mutate(NedB106 = paste(NedB106A, NedB106B, sep = "/")) %>%
+  mutate(NedB4 = paste(NedB4A, NedB4B, sep = "/")) %>%
+  mutate(PetA8 = paste(PetA8A, PetA8B, sep = "/")) %>%
+  mutate(PetB8 = paste(PetB8A, PetB8B, sep = "/")) %>%
+  mutate(PetB9 = paste(PetB9A, PetB9B, sep = "/")) %>%
+  select(tree,FamA103,FamA12,FamB102,FamB101,FamA110,VicA125,VicA7,VicA116,VicA3,NedB7,NedA104,NedB106,NedB4,PetA8,PetB8,PetB9)
+
+ZP_gen2 <- ZP_gen %>%
+  mutate(FamA103 = paste(FamA103A, FamA103B, sep = "/")) %>%
+  mutate(FamA12 = paste(FamA12A, FamA12B, sep = "/")) %>%
+  mutate(FamB102 = paste(FamB102A, FamB102B, sep = "/")) %>%
+  mutate(FamB101 = paste(FamB101A, FamB101B, sep = "/")) %>%
+  mutate(FamA110 = paste(FamA110A, FamA110B, sep = "/")) %>%
+  mutate(VicA125 = paste(VicA125A, VicA125B, sep = "/")) %>%
+  mutate(VicA7 = paste(VicA7A, VicA7B, sep = "/")) %>%
+  mutate(VicA116 = paste(VicA116A, VicA116B, sep = "/")) %>%
+  mutate(VicA3 = paste(VicA3A, VicA3B, sep = "/")) %>%
+  mutate(NedB7 = paste(NedB7A, NedB7B, sep = "/")) %>%
+  mutate(NedA104 = paste(NedA104A, NedA104B, sep = "/")) %>%
+  mutate(NedB106 = paste(NedB106A, NedB106B, sep = "/")) %>%
+  mutate(NedB4 = paste(NedB4A, NedB4B, sep = "/")) %>%
+  mutate(PetA8 = paste(PetA8A, PetA8B, sep = "/")) %>%
+  mutate(PetB8 = paste(PetB8A, PetB8B, sep = "/")) %>%
+  mutate(PetB9 = paste(PetB9A, PetB9B, sep = "/")) %>%
+  select(tree,FamA103,FamA12,FamB102,FamB101,FamA110,VicA125,VicA7,VicA116,VicA3,NedB7,NedA104,NedB106,NedB4,PetA8,PetB8,PetB9)
+
+# Join data on location (sector), dbh and altitud
+names(JV_gen2)[names(JV_gen2) == "tree"] <- "id"
+names(SAUC_gen2)[names(SAUC_gen2) == "tree"] <- "id"
+names(PL_gen2)[names(PL_gen2) == "tree"] <- "id"
+names(ZP_gen2)[names(ZP_gen2) == "tree"] <- "id"
+
+JV_gen2 <- left_join(JV_gen2, JV_sector, by = "id")
+SAUC_gen2 <- left_join(SAUC_gen2, SAUC_sector, by = "id")
+PL_gen2 <- left_join(PL_gen2, PL_sector, by = "id")
+ZP_gen2 <- left_join(ZP_gen2, ZP_sector, by = "id")
+
+# Combine all data in a single data.frame
+all_gen <- rbind.data.frame(JV_gen2,SAUC_gen2,PL_gen2,ZP_gen2)
+str(all_gen)
+
+# Convert the data to genind objects
+JV_genind <- df2genind(X=JV_gen2[,c(2:17)], sep = "/", ind.names = JV_gen2$id,  pop = JV_gen2$altitude_type, NA.char = "-1")
+summary(JV_genind)
+# See information contained
+as_tibble(JV_genind@tab)
+JV_genind@loc.n.all
+JV_genind@pop
+
+SAUC_genind <- df2genind(X=SAUC_gen2[,c(2:17)], sep = "/", ind.names = SAUC_gen2$id,  pop = SAUC_gen2$altitude_type, NA.char = "-1")
+
+PL_genind <- df2genind(X=PL_gen2[,c(2:17)], sep = "/", ind.names = PL_gen2$id,  pop = PL_gen2$altitude_type, NA.char = "-1")
+
+ZP_genind <- df2genind(X=ZP_gen2[,c(2:17)], sep = "/", ind.names = ZP_gen2$id,  pop = ZP_gen2$altitude_type, NA.char = "-1")
+
+all_genind <- df2genind(X=all_gen[,c(2:17)], sep = "/", ind.names = all_gen$id,  pop = all_gen$altitude_type, NA.char = "-1")
+
+temp <- filter(all_gen, altitude_type == "upper")
+up_genind <- df2genind(X=temp[,c(2:17)], sep = "/", ind.names = temp$id,  pop = temp$altitude_type, NA.char = "-1")
+
+temp2 <- filter(all_gen, altitude_type == "lower")
+low_genind <- df2genind(X=temp2[,c(2:17)], sep = "/", ind.names = temp2$id,  pop = temp2$altitude_type, NA.char = "-1")
+
+```
+
+## HETEROZYGOSITY: differences among sectors
+### Hs test is based on randomly permuting individuals between groups to obtain a reference distribution of the test statistics (n=499)
+
+```{r heterozygosity}
+# Load adegenet package
+library(adegenet)
+library(hierfstat)
+library(pegas)
+
+# Calculate expected heterozygosity for each sector by pop (adegenet)
+JV_he <- Hs(JV_genind)
+JV_test <- Hs.test(JV_genind[pop="upper"],
+            JV_genind[pop="lower"],
+            n.sim=499)
+SAUC_he <- Hs(SAUC_genind)
+SAUC_test <- Hs.test(SAUC_genind[pop="upper"],
+            SAUC_genind[pop="lower"],
+            n.sim=499)
+
+PL_he <- Hs(PL_genind)
+PL_test <- Hs.test(PL_genind[pop="upper"],
+            PL_genind[pop="lower"],
+            n.sim=499)
+
+ZP_he <- Hs(ZP_genind)
+ZP_test <- Hs.test(ZP_genind[pop="upper"],
+            ZP_genind[pop="lower"],
+            n.sim=499)
+
+# He: non signific
+all_he <- Hs(all_genind)
+all_test <- Hs.test(all_genind[pop="upper"],
+            all_genind[pop="lower"],
+            n.sim=499)
+
+```
+
+## INDIVIDUAL HETEROZYGOSITY: Altitude and position (x coord) effect
+### Ho estimated as the proportion of heterozygous loci in an individual genotype (as a proxy of individual genetic diversity). 
+
+```{r Ho individual}
+# Function to calculate the heterozygosity for each individual
+# Create an empty data frame with two columns
+Ho.ind <- data.frame(id = character(), Ho = numeric(), stringsAsFactors = FALSE)
+
+# Loop through each row of the data frame
+for (i in 1:nrow(all_gen)) {
+  id_count <- sum(sapply(all_gen[i, 2:17], function(x) length(unique(strsplit(x, "/")[[1]]))) == 2)
+  Ho.ind[i, ] <- list(all_gen[i, "id"], id_count / 16)
+}
+
+# Test Ho differences with altitude or xcoords
+all_gen2 <- left_join(all_altitude, Ho.ind, by = "id")
+all_gen2 <- all_gen2 %>%
+  mutate(pop = substr(id,1,2))
+
+# I try to model Ho with the 2 candidate explanatory variables: altitude, coord x
+# Non significant effects
+library(lme4)
+model.Ho.ind <- lmer(Ho ~ altitude + (1|pop), data = all_gen2)
+summary(model.Ho.ind)
+library(lmerTest)
+anova(model.Ho.ind)
+
+# Model by pop
+# First, prepare dataset
+JV_gen3 <- left_join(JV_gen2, Ho.ind, by = "id")
+SAUC_gen3 <- left_join(SAUC_gen2, Ho.ind, by = "id")
+PL_gen3 <- left_join(PL_gen2, Ho.ind, by = "id")
+ZP_gen3 <- left_join(ZP_gen2, Ho.ind, by = "id")
+
+plot(JV_xy$y ~ JV_xy$x)
+plot(JV_gen3$Ho ~ JV_gen3$x) 
+plot(JV_gen3$x, JV_gen3$altitude) # Higher x, higher altitude
+JV.Ho <- lm(Ho ~ x, data = JV_gen3)
+JV.Ho <- lm(Ho ~ altitude, data = JV_gen3)
+summary(JV.Ho)
+
+plot(SAUC_gen3$Ho ~ SAUC_gen3$altitude)
+plot(SAUC_gen3$x, SAUC_gen3$altitude) # Lower x, higher altitude
+SAUC.Ho <- lm(Ho ~ altitude, data = SAUC_gen3)
+SAUC.Ho <- lm(Ho ~ x, data = SAUC_gen3)
+summary(SAUC.Ho)
+
+plot(PL_gen3$Ho ~ PL_gen3$altitude)
+plot(PL_gen3$x, PL_gen3$altitude)
+PL.Ho <- lm(Ho ~ x, data = PL_gen3)
+summary(PL.Ho)
+
+plot(ZP_gen3$Ho ~ ZP_gen3$altitude)
+plot(ZP_gen3$x, ZP_gen3$altitude)
+ZP.Ho <- lm(Ho ~ x, data = ZP_gen3)
+summary(ZP.Ho)
+```
+
+## INBREEDING: differences among sectors (likelihood-based estimate)
+
+```{r inbreeding}
+# inbreeding function: The function inbreeding estimates the inbreeding coefficient of an individuals (F) by computing its likelihood function. It return a sample of F values from this distribution, that are later compared among sectors.
+
+# Separate genind by pop/sectors and simulate 100 values per individual
+JV_inbr <- inbreeding((JV_genind), N=100)
+JV_inbr_mean <- sapply(JV_inbr, mean)
+JV_inbr <- as.data.frame(bind_cols(JV_inbr_mean, JV_gen2$altitude_type, row.names = JV_gen2$id))
+names(JV_inbr) <- c("inbr", "sector", "id")
+
+SAUC_inbr <- inbreeding((SAUC_genind), N=100)
+SAUC_inbr_mean <- sapply(SAUC_inbr, mean)
+SAUC_inbr <- as.data.frame(bind_cols(SAUC_inbr_mean, SAUC_gen2$altitude_type, row.names = SAUC_gen2$id))
+names(SAUC_inbr) <- c("inbr", "sector", "id")
+
+PL_inbr <- inbreeding((PL_genind), N=100)
+PL_inbr_mean <- sapply(PL_inbr, mean)
+PL_inbr <- as.data.frame(bind_cols(PL_inbr_mean, PL_gen2$altitude_type, row.names = PL_gen2$id))
+names(PL_inbr) <- c("inbr", "sector", "id")
+
+ZP_inbr <- inbreeding((ZP_genind), N=100)
+ZP_inbr_mean <- sapply(ZP_inbr, mean)
+ZP_inbr <- as.data.frame(bind_cols(ZP_inbr_mean, ZP_gen2$altitude_type, row.names = ZP_gen2$id))
+names(ZP_inbr) <- c("inbr", "sector", "id")
+
+# Test differences among sector by pop
+anov_JVinbr <- aov(inbr ~ sector, data = JV_inbr)
+print(summary(anov_JVinbr))
+tapply(JV_inbr$inbr,JV_inbr$sector,mean)
+
+anov_SAUCinbr <- aov(inbr ~ sector, data = SAUC_inbr)
+print(summary(anov_SAUCinbr))
+tapply(SAUC_inbr$inbr,SAUC_inbr$sector,mean)
+
+anov_PLinbr <- aov(inbr ~ sector, data = PL_inbr)
+print(summary(anov_PLinbr))
+tapply(PL_inbr$inbr,PL_inbr$sector,mean)
+
+anov_ZPinbr <- aov(inbr ~ sector, data = ZP_inbr)
+print(summary(anov_ZPinbr))
+tapply(ZP_inbr$inbr,ZP_inbr$sector,mean)
+
+```
+
+## Ar: differences among sectors (paired data per locus)
+
+```{r compute allelic richness}
+library(hierfstat)
+all_Ar <- allelic.richness(all_genind,diploid=TRUE)
+str(all_Ar)
+all_Ar <- all_Ar$Ar
+
+JV_Ar <- allelic.richness(JV_genind,diploid=TRUE)
+JV_Ar <- JV_Ar$Ar
+
+SAUC_Ar <- allelic.richness(SAUC_genind,diploid=TRUE)
+SAUC_Ar <- SAUC_Ar$Ar
+
+PL_Ar <- allelic.richness(PL_genind,diploid=TRUE)
+PL_Ar <- PL_Ar$Ar
+
+ZP_Ar <- allelic.richness(ZP_genind,diploid=TRUE)
+ZP_Ar <- ZP_Ar$Ar
+
+# perform Wilcoxon's signed-ranks test
+wilcox.test(all_Ar$lower, all_Ar$upper, paired = TRUE)
+t.test(ZP_Ar$lower, ZP_Ar$upper)
+
+wilcox.test(JV_Ar$lower, JV_Ar$upper, paired = TRUE)
+
+wilcox.test(SAUC_Ar$lower, SAUC_Ar$upper, paired = TRUE)
+
+wilcox.test(PL_Ar$lower, PL_Ar$upper, paired = TRUE)
+
+wilcox.test(ZP_Ar$lower, ZP_Ar$upper, paired = TRUE)
+
+  # Allelic richness: non significant 
+```
+
+## HO / Fis: differences among sectors (paired data per locus)
+
+```{r Ho and Fis}
+library(hierfstat)
+library(purrr)
+stat_up <- basic.stats(up_genind,diploid=TRUE)
+stat_low <- basic.stats(low_genind,diploid=TRUE)
+
+#Ho paired data per locus
+Ho_up <- as.data.frame(stat_up$Ho)
+Ho_up <- Ho_up %>%
+  set_names(c("Ho_upper","y")) %>%
+  select(Ho_upper) 
+  
+Ho_low <- as.data.frame(stat_low$Ho)
+Ho_low <- Ho_low %>%
+  set_names(c("Ho_lower","y")) %>%
+  select(Ho_lower) 
+
+# perform Wilcoxon's signed-ranks test
+# Ho: non significant (neither Hs)
+wilcox.test(Ho_up$Ho_upper, Ho_low$Ho_lower, paired = TRUE) # paired data
+t.test(Ho_up$Ho_upper, Ho_low$Ho_lower) # independent samples
+
+# NOT RUN ########################################################################
+#Fis paired data per locus
+Fis_up <- as.data.frame(stat_up$Fis)
+Fis_up <- Fis_up %>%
+  set_names(c("Fis_upper","y")) %>%
+  select(Fis_upper) 
+  
+Fis_low <- as.data.frame(stat_low$Fis)
+Fis_low <- Fis_low %>%
+  set_names(c("Fis_lower","y")) %>%
+  select(Fis_lower) 
+
+# perform Wilcoxon's signed-ranks test
+# Fis: non significant
+wilcox.test(Fis_up$Fis_upper, Fis_low$Fis_lower, paired = TRUE) 
+t.test(Fis_up$Fis_upper, Fis_low$Fis_lower) # independent samples
+
+```
+
+# GENETIC DIVERSITY DIFFERENCES AMONG POPULATIONS 
+Estimate Fst, Fis, kinship... among populations to compare them.
+
+## Preparing data
+
+```{r Fst, inbreeding, kinship}
+#Add column pop
+JV_gen2 <- JV_gen2 %>%
+  mutate(pop = "JV") %>%
+  select(-altitude_type)
+
+SAUC_gen2 <- SAUC_gen2 %>%
+  mutate(pop = "SAUC") %>%
+  select(-altitude_type)
+
+PL_gen2 <- PL_gen2 %>%
+  mutate(pop = "PL") %>%
+  select(-altitude_type)
+
+ZP_gen2 <- ZP_gen2 %>%
+  mutate(pop = "ZP") %>%
+  select(-altitude_type)
+
+# Combine all data in a single data.frame and convert to a genind object
+all_gen <- rbind.data.frame(JV_gen2,SAUC_gen2,PL_gen2,ZP_gen2)
+str(all_gen)
+all_genind <- df2genind(X=all_gen[,c(2:17)], sep = "/", ind.names = all_gen$id,  pop = all_gen$pop, NA.char = "-1")
+
+# Basic statistics by population
+stat_JV <- basic.stats(JV_genind,diploid=TRUE)
+stat_SAUC <- basic.stats(SAUC_genind,diploid=TRUE)
+stat_PL <- basic.stats(PL_genind,diploid=TRUE)
+stat_ZP <- basic.stats(ZP_genind,diploid=TRUE)
+
+```
+
+## INBREEDING: differences among pops
+
+```{r inbreeding}
+
+# Separate genind by pops and simulate 100 values per individual
+all_inbr <- inbreeding((all_genind), N=100)
+all_inbr_mean <- sapply(all_inbr, mean)
+inbr <- as.data.frame(bind_cols(all_inbr_mean, all_gen2$pop, row.names = all_gen2$id))
+names(inbr) <- c("inbr", "pop", "id")
+
+# Test differences among pops (ANOVA).
+anova_inbr <- aov(inbr ~ pop, data = inbr)
+print(summary(anova_inbr))
+tapply(inbr$inbr,inbr$pop,mean)
+# Conduct the Tukey's HSD test
+tuk.inbr <- TukeyHSD(anova_inbr)
+plot(tuk.inbr)
+
+
+```
+
+## FST: differences among pops
+
+```{r}
+# Population specific Fst
+betas(all_genind, nboot=100)
+temp <- betas(all_genind, nboot=100, betaijT=TRUE)
+str(temp$betaij) # matrix of pairwise kinships
+colnames(temp$betaij) <- all_gen$id
+rownames(temp$betaij) <- all_gen$id
+
+# convert pairwise kinship matrix to a vector
+library(tidyr)
+kinsh <- as.data.frame.table(temp$betaij)
+colnames(kinsh) <- c("id","id2","kinship")
+
+```
+
+
+# POLLEN DIRECTION
+
+I aim at characterize the direction of pollen movements along the ravine. If there is a higher frequency of upper-lower dispersal or the opposite, or if pollen moves randomly.
+
+## CHI-X2 TEST
+
+```{r frequency chisq}
+# Load data on pair mates
+pair_dist <- read.csv("pair_distances.csv", header = TRUE, dec = ".")
+
+# Make a trick (duplicate id column) to join then to the pair_dist dataset
+names(all_altitude)
+all_alt2 <- all_altitude %>%
+  rename(mother = id) %>%
+  mutate(father = mother)
+
+all_alt2_mot <- select(all_alt2, mother, altitude)
+all_alt2_fat <- select(all_alt2, father, altitude, altitude_type)
+
+# Estimate frequency of cases 
+pol_dir <- pair_dist %>%
+  select(-X) %>%
+  left_join(all_alt2_mot, by = "mother") %>%
+  rename(altitude_mother = altitude) %>%
+  left_join(all_alt2_fat, by = "father") %>%
+  rename(altitude_father = altitude, altitude_type_father = altitude_type) %>%
+  mutate(direction = 
+           ifelse(altitude_father>altitude_mother,"from top","from bottom")) %>%
+  filter(SpDist>15)
+
+# Perform chi-squared test on direction levels
+# General (pooling pops)
+chisq_result <- chisq.test(table(pol_dir$direction))
+print(chisq_result)
+
+# By pop
+JV_pol_dir <- pol_dir %>%
+  filter(pop == 'JV') 
+print(chisq.test(table(JV_pol_dir$direction)))
+
+SAUC_pol_dir <- pol_dir %>%
+  filter(pop == 'SAUC') 
+print(chisq.test(table(SAUC_pol_dir$direction)))
+
+PL_pol_dir <- pol_dir %>%
+  filter(pop == 'PL') 
+print(chisq.test(table(PL_pol_dir$direction)))
+
+ZP_pol_dir <- pol_dir %>%
+  filter(pop == 'ZAP') 
+print(chisq.test(table(ZP_pol_dir$direction)))
+
+```
+
+## GLMM: pollen direction ~ distance between tree pairs
+```{r}
+# Create a logistic regression mode of direction (binomial data)
+library(lme4)
+model <- glmer(as.factor(direction) ~ scale(SpDist) + scale(altitude_mother) + altitude_type_father + (1|pop/mother), 
+               data = pol_dir, family = binomial())
+
+model2 <- glmer(as.factor(direction) ~ scale(altitude_mother) + (1|pop/mother), 
+               data = pol_dir, family = binomial())
+
+model3 <- glmer(as.factor(direction) ~ scale(SpDist) + (1|pop/mother), 
+               data = pol_dir, family = binomial())
+
+summary(model)
+
+# Scatter plot of direction vs. SpDist
+ggplot(data = pol_dir, aes(x = SpDist, y = direction)) + geom_point()
+
+# Load the required packages
+library(ggplot2)
+library(sjPlot)
+
+# Predict the probabilities of direction for different values of altitude_mother
+new_data <- data.frame(altitude_mother = seq(min(pol_dir$altitude_mother), max(pol_dir$altitude_mother), length.out = 100))
+new_data$pop <- "JV"
+new_data$mother <- "JV0605"
+new_data$predicted_prob <- predict(model2, new_data, type = "response")
+
+pol_dir$direction <- factor(pol_dir$direction)
+
+ggplot(pol_dir, aes(x = altitude_mother, y = ifelse(direction == "from top", 1, 0), group = interaction(pop, mother))) +
+  geom_point(aes(color = direction)) +
+  geom_smooth(data = new_data, aes(y = predicted_prob), se = FALSE) +
+  labs(x = "Altitude of mother", y = "Direction", color = "Direction") +
+  scale_color_discrete(guide = FALSE) +
+  theme_bw()
+
+# Create a contingency table
+table(pol_dir$altitude_type_father, pol_dir$direction)
+
+# Add row and column percentages to the contingency table
+library(gmodels)
+CrossTable(pol_dir$altitude_type_father, pol_dir$direction, prop.r = TRUE, prop.c = TRUE, chisq = FALSE)
+
+```
+
+

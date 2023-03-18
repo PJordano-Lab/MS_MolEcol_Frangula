@@ -1,0 +1,248 @@
+---
+title: "Arrow_pollenNetwork"
+author: "EvaM"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Functions built by Pedro to get a matrix with a threshold of mating probability 
+
+#quant2bin: Transformation of quantitative matrix into binary
+
+```{r network functions}
+library(diagram); library(network);library(sna);library(bipartite);library(igraph)
+quant2bin<-function(matr)
+{
+  cn=colnames(matr)
+  rn=rownames(matr)
+  ij<-which(matr>=0.05,arr.ind=T) # Adjust here the threshold value for mating.
+  # MEMM: green <0.05; 0.05 < yellow< 0.1; 0.1 < brown < 0.5; 0.5 < white < 1
+  #  ij<-which(matr!=0,arr.ind=T)
+  matrb<-matrix(0,dim(matr)[1],dim(matr)[2])
+  matrb[ij]<-1
+  colnames(matrb)=cn
+  rownames(matrb)=rn
+  return(matrb)
+}
+quant2binPJ<-function(matr)
+  # Version modified by PJ to get quant matrix trimming threshold values.
+  # This sets aij to 0 whenever the actual P value for a mating event
+  # is P<=threshold_value. Then sets the other quantitative P's' to the same
+  # value as the oriignal matrix.
+{
+  cn=colnames(matr)
+  rn=rownames(matr)
+  ij<-which(matr>=0.50,arr.ind=T) # Adjust here the threshold value for mating
+  #  ij<-which(matr!=0,arr.ind=T)
+  matrb<-matrix(0,dim(matr)[1],dim(matr)[2])
+  matrb[ij]<-matr[ij]
+  #  matrb[ij]<-1
+  colnames(matrb)=cn
+  rownames(matrb)=rn
+  return(matrb)
+}
+
+sortmatr<-function(m){
+  rsum<-rowSums(m)
+  csum<-colSums(m)
+  totsum<-sum(m)
+  mext<-rbind(c(totsum,csum),cbind(rsum,m))
+  i<-dim(mext)[1]
+  j<-dim(mext)[2]
+  mexts<-t(mext[order(-mext[,1]),])
+  mexts<-t(mexts[order(-mexts[,1]),])
+  ms<-mexts[2:i,2:j]
+  return(ms)
+}
+
+# Plot matrix
+plotmat<-function(matr,xlabel="Maternal trees",ylabel="Pollen donors",cexmin=0.2,cexmax=4,sortm=TRUE,sqroot=TRUE){
+  r=nrow(matr)
+  c=ncol(matr)
+  if (sortm==T) matr=sortmatr(matr)
+  if (sqroot==T) matr=sqrt(matr) 
+  matplot(1,c,type="p",pch=21,col= rgb(0, 0, 1, 0.2),bg=rgb(0, 0, 1, 0.2),cex=cexmin+(cexmax*matr[1,1]/max(matr)),xlim=c(1,r),
+          ylim=c(1,c),xlab=xlabel,ylab=ylabel,bty="n",xaxt="n",yaxt="n")
+  for (i in 1:r){
+    for (j in 1:c){
+      if(matr[i,j]!=0){
+        matplot(i,1+(c-j),type="p",pch=21,col= rgb(0, 0, 1, 0.1),bg=rgb(0, 0, 1, 0.3),cex=cexmin+(cexmax*matr[i,j]/max(matr)),add=T)
+      }
+    }
+  }
+}
+
+```
+
+Mating matrices contain expected proportion by MEMM; values between 0-1 (JV_pollenNetwork.txt, etc)
+
+## JUAN VELA
+
+```{r JV mating graph}
+
+# Data. Input the population tables (pollination expected proportion-MEMM) as matrix here.
+matingJVq<-as.matrix(read.table("./pollenNetwork_matrices/JV_pollenNetwork.txt",header=T,sep="\t",dec=".",na.strings="NA", row.names=1))
+# Set mating links according to threshold values.
+# Adjust threshold values in function {quant2bin}.
+matingJV<-quant2bin(matingJVq)     # Binary matrix with threshold value
+#matingJVPJ<-quant2binPJ(matingJVq) # Quant. matrix with threshold value
+
+# Coordinates
+JVcoor<-read.table("./coordinates/JV.txt",header=T,row.names=1,sep="\t",dec=".",na.strings="NA")
+
+# Creates dataset for plotting on the map
+pp<-as.matrix(JVcoor[,1:2])  
+n<-length(JVcoor[,1]) # Number of trees in dataset
+
+plot(JVcoor$x,JVcoor$y, xlim=c(263600,263850),ylim=c(4043950,4044200),
+     xlab='x', ylab='y', main='JV')  # This plots the map 
+# pp2<-as.matrix(cbind(JVcoor[,1],0)) # Creates dataset for plotting along line
+
+# Function to iterate
+foo <- function (j) {
+  zz<- pp[j,]
+  for (i in 1:n) {
+    if (i!=j)
+      if (matingJV[j, i]!= 0)  # GIVE THRESHOLD VALUE HERE!!!
+        curvedarrow(from=zz, to=pp[i,],
+                    lwd=0.5, endhead=F, arr.width=0.05, arr.length=0.01, 
+                    lcol=rgb(0,0,1,0.4), curve=0.35, 
+                    arr.pos=1,arr.lwd=0.01, arr.adj=0.5)
+  }
+}
+# Now iterate over all pollen sources. This is to avoid the error with the arrow function 
+# aborting in the double loop.
+for (i in 1:n) {
+  foo(i)
+}
+
+plotmat(matingJVq,sortm=F)
+```
+
+
+## SAUCEDA
+
+```{r SAUC mating graph}
+
+# Data. Input the population tables (pollination expected proportion-MEMM) as matrix here.
+matingSAUCq<-as.matrix(read.table("./pollenNetwork_matrices/SAUC_pollenNetwork.txt",header=T,sep="\t",dec=".",na.strings="NA", row.names=1))
+# Set mating links according to threshold values.
+# Adjust threshold values in function {quant2bin}.
+matingSAUC<-quant2bin(matingSAUCq)     # Binary matrix with threshold value
+#matingSAUCPJ<-quant2binPJ(matingSAUCq) # Quant. matrix with threshold value
+
+# Coordinates
+SAUCcoor<-read.table("./coordinates/SAUC.txt",header=T,row.names=1,sep="\t",dec=".",na.strings="NA")
+
+# Creates dataset for plotting on the map
+pp<-as.matrix(SAUCcoor[,1:2])  
+n<-length(SAUCcoor[,1]) # Number of trees in dataset
+
+plot(SAUCcoor$x,SAUCcoor$y, xlim=c(266700,266950),ylim=c(4046450,4046900),
+     xlab='x', ylab='y', main='SAUC')  # This plots the map 
+# pp2<-as.matrix(cbind(SAUCcoor[,1],0)) # Creates dataset for plotting along line
+
+# Function to iterate
+foo <- function (j) {
+  zz<- pp[j,]
+  for (i in 1:n) {
+    if (i!=j)
+      if (matingSAUC[j, i]!= 0)  # GIVE THRESHOLD VALUE HERE!!!
+        curvedarrow(from=zz, to=pp[i,],
+                    lwd=0.5, endhead=F, arr.width=0.05, arr.length=0.01, 
+                    lcol=rgb(0,0,1,0.4), curve=0.25, 
+                    arr.pos=1,arr.lwd=0.01, arr.adj=0.5)
+  }
+}
+# Now iterate over all pollen sources. This is to avoid the error with the arrow function 
+# aborting in the double loop.
+for (i in 1:n) {
+  foo(i)
+}
+
+plotmat(matingSAUCq,sortm=F)
+```
+
+## PASADA LLANA
+
+```{r PL mating graph}
+
+# Data. Input the population tables (pollination expected proportion-MEMM) as matrix here.
+matingPLq<-as.matrix(read.table("./pollenNetwork_matrices/PL_pollenNetwork.txt",header=T,sep="\t",dec=".",na.strings="NA", row.names=1))
+# Set mating links according to threshold values.
+# Adjust threshold values in function {quant2bin}.
+matingPL<-quant2bin(matingPLq)     # Binary matrix with threshold value
+#matingPLPJ<-quant2binPJ(matingPLq) # Quant. matrix with threshold value
+
+# Coordinates
+PLcoor<-read.table("./coordinates/PL.txt",header=T,row.names=1,sep="\t",dec=".",na.strings="NA")
+
+# Creates dataset for plotting on the map
+pp<-as.matrix(PLcoor[,1:2])  
+n<-length(PLcoor[,1]) # Number of trees in dataset
+
+plot(PLcoor$x,PLcoor$y,  xlim=c(266750,268100),ylim=c(4044400,4045200),
+     xlab='x', ylab='y', main='PL')  # This plots the map 
+# pp2<-as.matrix(cbind(PLcoor[,1],0)) # Creates dataset for plotting along line
+
+# Function to iterate
+foo <- function (j) {
+  zz<- pp[j,]
+  for (i in 1:n) {
+    if (i!=j)
+      if (matingPL[j, i]!= 0)  # GIVE THRESHOLD VALUE HERE!!!
+        curvedarrow(from=zz, to=pp[i,],
+                    lwd=0.5, endhead=F, arr.width=0.05, arr.length=0.01, 
+                    lcol=rgb(0,0,1,0.4), curve=0.25, 
+                    arr.pos=1,arr.lwd=0.01, arr.adj=0.5)
+  }
+}
+# Now iterate over all pollen sources. This is to avoid the error with the arrow function 
+# aborting in the double loop.
+for (i in 1:n) {
+  foo(i)
+}
+
+```
+
+## EL ZAPATO
+
+```{r ZP mating graph}
+
+# Data. Input the population tables (pollination expected proportion-MEMM) as matrix here.
+matingZPq<-as.matrix(read.table("./pollenNetwork_matrices/ZP_pollenNetwork.txt",header=T,sep="\t",dec=".",na.strings="NA", row.names=1))
+# Set mating links according to threshold values.
+# Adjust threshold values in function {quant2bin}.
+matingZP<-quant2bin(matingZPq)     # Binary matrix with threshold value
+#matingZPPJ<-quant2binPJ(matingZPq) # Quant. matrix with threshold value
+
+# Coordinates
+ZPcoor<-read.table("./coordinates/ZAP.txt",header=T,row.names=1,sep="\t",dec=".",na.strings="NA")
+
+# Creates dataset for plotting on the map
+pp<-as.matrix(ZPcoor[,1:2])  
+n<-length(ZPcoor[,1]) # Number of trees in dataset
+
+plot(ZPcoor$x,ZPcoor$y,  xlim=c(265200,266600),ylim=c(4040400,4040850),
+     xlab='x', ylab='y', main='ZP')  # This plots the map 
+# pp2<-as.matrix(cbind(ZPcoor[,1],0)) # Creates dataset for plotting along line
+
+# Function to iterate
+foo <- function (j) {
+  zz<- pp[j,]
+  for (i in 1:n) {
+    if (i!=j)
+      if (matingZP[j, i]!= 0)  # GIVE THRESHOLD VALUE HERE!!!
+        curvedarrow(from=zz, to=pp[i,],
+                    lwd=0.5, endhead=F, arr.width=0.05, arr.length=0.01, 
+                    lcol=rgb(0,0,1,0.4), curve=0.3, 
+                    arr.pos=1,arr.lwd=0.1, arr.adj=0.5)
+  }
+}
+# Now iterate over all pollen sources. This is to avoid the error with the arrow function 
+# aborting in the double loop.
+for (i in 1:n) {
+  foo(i)
+}
+
+```
