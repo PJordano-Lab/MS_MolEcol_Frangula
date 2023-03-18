@@ -106,10 +106,10 @@ params.net = function (paramDispfile, file2 , file3, nbSpl = 100){
   
 }
  
-params.JV <- params.net(paramDispfile = "MEMM_files/ParamDisp_JV.txt", file2 = "MEMM_files/IndivFec_JV.txt", file3 = "MEMM_files/JV_adult.txt")
-params.SAUC <- params.net(paramDispfile = "MEMM_files/ParamDisp_SAUC.txt", file2 = "MEMM_files/IndivFec_SAUC.txt", file3 = "MEMM_files/SAUC_adult.txt")
-params.PL <- params.net(paramDispfile = "MEMM_files/ParamDisp_PL.txt", file2 = "MEMM_files/IndivFec_PL.txt", file3 = "MEMM_files/PL_adult.txt")
-params.ZP <- params.net(paramDispfile = "MEMM_files/ParamDisp_ZP.txt", file2 = "MEMM_files/IndivFec_ZP.txt", file3 = "MEMM_files/ZP_adult.txt")
+params.JV <- params.net(paramDispfile = "data/MEMM_files/ParamDisp_JV.txt", file2 = "data/MEMM_files/IndivFec_JV.txt", file3 = "data/MEMM_files/JV_adult.txt")
+params.SAUC <- params.net(paramDispfile = "data/MEMM_files/ParamDisp_SAUC.txt", file2 = "data/MEMM_files/IndivFec_SAUC.txt", file3 = "data/MEMM_files/SAUC_adult.txt")
+params.PL <- params.net(paramDispfile = "data/MEMM_files/ParamDisp_PL.txt", file2 = "data/MEMM_files/IndivFec_PL.txt", file3 = "data/MEMM_files/PL_adult.txt")
+params.ZP <- params.net(paramDispfile = "data/MEMM_files/ParamDisp_ZP.txt", file2 = "data/MEMM_files/IndivFec_ZP.txt", file3 = "data/MEMM_files/ZP_adult.txt")
 
 ```
 
@@ -168,9 +168,11 @@ pollenNetwork= function(file1, file2, file3, file4, nloc, nql, nqt, nqw, forBrea
 }
 
 par(mfrow=c(2,2))
+
+# These are the actual adjacency mnatrices, based on median values, once filtered by `mat.JV[mat.JV < 0.05] <- 0`.
 ### JV pop ###
 
-mat.JV <- pollenNetwork(file = "MEMM_files/ParamDisp_JV.txt", file2 = "MEMM_files/IndivFec_JV.txt", file3 = "MEMM_files/JV_adult.txt", file4 = "pollenNetwork_matrices/JV_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
+mat.JV <- pollenNetwork(file = "data/MEMM_files/ParamDisp_JV.txt", file2 = "data/MEMM_files/IndivFec_JV.txt", file3 = "data/MEMM_files/JV_adult.txt", file4 = "data/pollenNetwork_matrices/JV_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
 
 str(mat.JV)
 mat.JV[mat.JV < 0.05] <- 0
@@ -183,7 +185,7 @@ a <- barplot(table(deg.JV$`lower level`), main="Degree Distribution (JV)", xlab=
 
 ### SAUC pop ###
 
-mat.SAUC <- pollenNetwork(file = "MEMM_files/ParamDisp_SAUC.txt", file2 = "MEMM_files/IndivFec_SAUC.txt", file3 = "MEMM_files/SAUC_adult.txt", file4 = "pollenNetwork_matrices/SAUC_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
+mat.SAUC <- pollenNetwork(file = "data/MEMM_files/ParamDisp_SAUC.txt", file2 = "data/MEMM_files/IndivFec_SAUC.txt", file3 = "data/MEMM_files/SAUC_adult.txt", file4 = "data/pollenNetwork_matrices/SAUC_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
 
 str(mat.SAUC)
 mat.SAUC[mat.SAUC < 0.05] <- 0
@@ -196,7 +198,7 @@ b <- barplot(table(deg.SAUC$`lower level`), main="Degree Distribution (SAUC)", x
 
 ### PL pop ###
 
-mat.PL <- pollenNetwork(file = "MEMM_files/ParamDisp_PL.txt", file2 = "MEMM_files/IndivFec_PL.txt", file3 = "MEMM_files/PL_adult.txt", file4 = "pollenNetwork_matrices/PL_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
+mat.PL <- pollenNetwork(file = "data/MEMM_files/ParamDisp_PL.txt", file2 = "data/MEMM_files/IndivFec_PL.txt", file3 = "data/MEMM_files/PL_adult.txt", file4 = "data/pollenNetwork_matrices/PL_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
 
 str(mat.PL)
 mat.PL[mat.PL < 0.05] <- 0
@@ -209,7 +211,7 @@ c <- barplot(table(deg.PL$`lower level`), main="Degree Distribution (PL)", xlab=
 
 ### ZP pop ###
 
-mat.ZP <- pollenNetwork(file = "MEMM_files/ParamDisp_ZP.txt", file2 = "MEMM_files/IndivFec_ZP.txt", file3 = "MEMM_files/ZP_adult.txt", file4 = "pollenNetwork_matrices/ZP_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
+mat.ZP <- pollenNetwork(file = "data/MEMM_files/ParamDisp_ZP.txt", file2 = "data/MEMM_files/IndivFec_ZP.txt", file3 = "data/MEMM_files/ZP_adult.txt", file4 = "data/pollenNetwork_matrices/ZP_pollenNetwork2", nloc=16, nql=0, nqt=0, nqw=0, forBreaks=c(0,0.05,0.1,0.5,1))
 
 str(mat.ZP)
 mat.ZP[mat.ZP < 0.05] <- 0
@@ -226,7 +228,146 @@ d <- barplot(table(deg.ZP$`lower level`), main="Degree Distribution (ZP)", xlab=
 
 ```
 
-## TESTING DIFFERENCES AMONG POPULATIONS
+## MODULARITY ANALYSIS
+
+Modularity estimates for the thresholded mating networks in each population.
+```{r modularity}
+
+dim(mat.JV)
+dim(mat.PL)
+dim(mat.SAUC)
+dim(mat.ZP)
+
+# Modularity tests -- with our function(modularity)
+# --------------------------------------------------------------------
+# Modularity function
+modularity <- function (mat) {
+    require(bipartite)
+    (res <- computeModules(mat)) # takes several minutes!
+    printoutModuleInformation(res)
+    cat(res@likelihood)
+    plotModuleWeb(res,labsize=0.8)
+    # Null model test of modularity
+    #     nulls <- nullmodel(mat, N=10, method="r2d")
+    #     modules.nulls <- sapply(nulls, computeModules)
+    #     like.nulls <- sapply(modules.nulls, function(x) x@likelihood)
+    #     z <- (mod@likelihood - mean(like.nulls))/sd(like.nulls)
+    #     z
+}
+
+mymat <- mat.JV
+modularity(mymat)
+modularity(pre2007[,4:102])
+modularity(apis2007[,4:102])
+modularity(pre2008[,4:102])
+modularity(apis2008[,4:102])
+modularity(subpre2009[,4:102])
+modularity(apis2009[,4:102])
+modularity(pre2008sub2009)
+modularity(apis20082009)
+#
+# Testing modularity significance (@30 min for 100 null replicates)
+require(bipartite)
+TIME <- Sys.time()
+mat <- pre2007[,4:102]     # Assign the observed matrix
+res <- computeModules(mat) # Modularity for observed matrix
+nulls <- nullmodel(mat, N=100, method=3)
+modules.nulls <- sapply(nulls, computeModules)
+like.nulls <- sapply(modules.nulls, function(x) x@likelihood)
+z <- (res@likelihood - mean(like.nulls))/sd(like.nulls)
+p <- 2*pnorm(-abs(z))
+cat(p," ")
+Sys.time() - TIME 
+#
+# Batch to generate the null models for modularity M significance test. ----- 
+# (for each matrix, @30 min for 100 null replicates)
+TIME <- Sys.time()
+# Modularity for observed matrix.
+# Give here the mean observed modularity values.
+    M_pre2007 <- 0.30417
+    M_apis2007 <- 0.48063
+    M_pre2008 <- 0.36591
+    M_apis2008 <- 0.44998
+    M_presub2009 <- 0.32681
+    M_apis2009 <- 0.58132
+    M_pre2008sub2009 <- 0.32213
+    M_apis20082009 <- 0.46511
+Msig <- function (mat, mlike)  {
+    # mat is the input matrix for which M is tested
+    # mlike is the observed mean M value
+    nulls <- nullmodel(mat, N=999, method=3)
+    modules.nulls <- sapply(nulls, computeModules)
+    like.nulls <- sapply(modules.nulls, function(x) x@likelihood)
+    z <- (mlike - mean(like.nulls))/sd(like.nulls)
+    p <- 2*pnorm(-abs(z))
+    cat("\n\n","P value for modularity M= ", mlike, "\n", 
+        "No. resamplings= ", N, "\n",
+        "P=  ",p)
+} 
+# --------------------------------------------------------------------
+Msig(pre2007[,4:102], M_pre2007)
+Msig(apis2007[,4:102], M_apis2007)
+Msig(pre2008[,4:102], M_pre2008)
+Msig(apis2008[,4:102], M_apis2008)
+Msig(subpre2009[,4:102], M_presub2009)
+Msig(apis2009[,4:102], M_apis2009)
+Msig(pre2008sub2009, M_pre2008sub2009)
+Msig(apis20082009, M_apis20082009)
+# --------------------------------------------------------------------
+Sys.time() - TIME 
+# --------------------------------------------------------------------
+# Testing modularity significance (@30 min for 100 null replicates)
+TIME <- Sys.time()
+mat <- newpre2007[,4:102]     # Assign the observed matrix
+res <- computeModules(mat) # Modularity for observed matrix
+nulls <- nullmodel(mat, N=100, method=3)
+modules.nulls <- sapply(nulls, computeModules)
+like.nulls <- sapply(modules.nulls, function(x) x@likelihood)
+z <- (res@likelihood - mean(like.nulls))/sd(like.nulls)
+p <- 2*pnorm(-abs(z))
+cat(formatC(p, digits = 8, format = "e")," ")
+Sys.time() - TIME 
+#
+# Batch to generate the null models for modularity M significance test. ----- 
+# (for each matrix, @30 min for 100 null replicates)
+TIME <- Sys.time()
+# Modularity for observed matrix.
+# Give here the mean observed modularity values.
+    M_pre2007 <- 0.32505
+    M_apis2007 <- 0.47675
+    M_pre2008 <- 0.37325
+    M_apis2008 <- 0.43367
+    M_presub2009 <- 0.31420
+    M_apis2009 <- 0.47407
+    M_pre2008sub2009 <- 0.31749
+    M_apis20082009 <- 0.46129
+Msig <- function (mat, mlike)  {
+    # mat is the input matrix for which M is tested
+    # mlike is the observed mean M value
+    nulls <- nullmodel(mat, N=99, method=3)
+    modules.nulls <- sapply(nulls, computeModules)
+    like.nulls <- sapply(modules.nulls, function(x) x@likelihood)
+    z <- (mlike - mean(like.nulls))/sd(like.nulls)
+    p <- 2*pnorm(-abs(z))
+    cat("\n\n","P value for modularity M= ", mlike, "\n", 
+        "No. resamplings= ", N, "\n",
+        "P=  ",formatC(p, digits = 8, format = "e"))
+} 
+Msig(pre2007[,4:102], M_pre2007)
+Msig(apis2007[,4:102], M_apis2007)
+Msig(pre2008[,4:102], M_pre2008)
+Msig(apis2008[,4:102], M_apis2008)
+Msig(subpre2009[,4:102], M_presub2009)
+Msig(apis2009[,4:102], M_apis2009)
+Msig(pre2008sub2009, M_pre2008sub2009)
+Msig(apis20082009, M_apis20082009)
+Sys.time() - TIME 
+#----------------------------------------------------------------------
+
+```
+
+
+## TESTING FOR DIFFERENCES AMONG POPULATIONS
 
 ```{r population comparison}
 library(dplyr)
@@ -264,19 +405,18 @@ CI.ZP <- data.frame(means, cis)
 
 CI.all <- cbind(CI.JV,CI.SAUC,CI.PL,CI.ZP)
 write.table(CI.all,"network_parameters_CI.txt", sep = ",")
----------------------------------------------------------
-
+#---------------------------------------------------------
 params.JV <- params.JV %>%
-  mutate(pop = "JV")
+  dplyr::mutate(pop = "JV")
 params.SAUC <- params.SAUC %>%
-  mutate(pop = "SAUC") %>%
-  select(-pop)
+  dplyr::mutate(pop = "SAUC") #%>%
+  #dplyr::select(-pop)
 params.PL <- params.PL %>%
-  mutate(pop = "PL") %>%
-  select(-pop)
+  dplyr::mutate(pop = "PL") #%>%
+  #dplyr::select(-pop)
 params.ZP <- params.ZP %>%
-  mutate(pop = "ZP") %>%
-  select(-pop)
+  dplyr::mutate(pop = "ZP") #%>%
+  #dplyr::select(-pop)
 
 params.all <- rbind(params.JV,params.SAUC,params.PL,params.ZP)
 colnames(params.all) <- c("connectance", "w.connectance", "NODF", "linkage.dens", "Shannon.div", "pop")
