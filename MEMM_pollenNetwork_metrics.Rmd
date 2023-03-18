@@ -487,4 +487,27 @@ ggplot(result5) +
 
 ```
 
+# ANALYSIS OF ASSORTATIVITY IN MATING
+
+```{r assortativity}
+assort <- function(mat) {
+  library(igraph)
+    g <- graph_from_adjacency_matrix(
+    mat,
+    mode = "directed",
+    weighted = TRUE,
+    diag = FALSE,
+    add.colnames = "mat.tree",
+    add.rownames = "pat.tree"
+  )
+  assortativity_degree(g, directed = TRUE)
+}
+
+assort(mat.JV)
+assort(mat.SAUC)
+assort(mat.PL)
+assort(mat.ZP)
+
+```
+
 
