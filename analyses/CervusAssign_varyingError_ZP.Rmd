@@ -1,0 +1,47 @@
+---
+title: "ZP_CervusAssignment_varyingError"
+author: "EvaM"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+I create an spreadsheet to compare paternity output got in CERVUS by setting 1%(95CI) vs. 0%(80CI). I added a column that indicates if there is a discrepancy among setting outputs (e.g., offsprings assigned with 1%error that are considered immigration with 0%error). I want to estimate if having those assigned offspring (they probably are false possitive assignments) implies an increase in the dispersal distance estimates (kernel)
+
+#Checking outliers at mother level based on CERVUS
+
+Checking "median_disp_distance" (file) I spot some mothers that are experiencing high median dispersal values not only in El Zapato but also in Pasada Llana:
+**Pasada Llana**:
+- S0043 (645 m) - It must be an isolated tree.It was once modified by Rocio, lots of offspring are long-dispersal events
+- S0157 (311 m) - It must be an isolated tree, as it shows 25% selfing and 75% of long-distance events.
+
+**El Zapato**: Just 8 mothers, 3 of them with high median dispersal distance.
+- Z0357 (403 m) - F1, F2 y F3 were asigned with 1%error but immigrants with 0%. However, mating behaviour for this mother is long-distance dispersal, so no reason to think they are outliers.
+- Z0562mother (262,5 m) - even 2 events farther than 1,000 m
+- Z0386 (202 m) - nothing odd
+
+#Checking outliers at offspring level based on CERVUS
+
+- Z0598F06 - Outlier (751 m), assignment based on just 12 loci typed. The remaining offspring of that mother are dispersed at shorter distances (maximum 200 m).
+
+```{r pairs distances, include=FALSE}
+dist <- read.table("pairs_EucDist.txt", header=TRUE, sep="\t", dec=".", na.strings=".")
+head(dist)
+
+ZP <- read.csv("prueba_ZP_errorRate.csv", header=TRUE, sep=";", dec=".", na.strings=".")
+head(ZP)
+
+library(dplyr)
+
+# Join distance mother-father to assignments provided by Cervus
+dist <- dist %>%
+  mutate(pair = paste(mother,father))
+
+ZP <- ZP %>%
+  mutate(pair = paste(mother,father_1pError))
+
+ZP_join <- left_join(ZP, dist, by = "pair") %>%
+  select(offspring, mother.x, father, trio_mismatch, decision_1pError, loci_typed, father_0pError, decision_0pError, discrepancy_0.1pError, SpDist.y) %>%
+  rename(mother = mother.x , SpDist = SpDist.y)
+
+write.csv(ZP_join, file="ZP_pair_distances_proof_errorRate.csv")
+```

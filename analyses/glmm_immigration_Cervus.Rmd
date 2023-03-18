@@ -1,0 +1,88 @@
+---
+title: "glmm_pctIImmigration_Cervus"
+author: "EvaM"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r data exploration}
+ # VE qualitative
+  par(mfrow=c(1,3))
+  boxplot(pctimm ~ dens, data=data.mom, xlab='density', ylab='%imm', notch=TRUE)
+  boxplot(pctimm ~ zone, data=data.mom, xlab='zone', ylab='%imm', notch=TRUE)
+  boxplot(pctimm ~ pop, data=data.mom, xlab='population', ylab='%imm', notch=TRUE)
+  par(mfrow=c(1,2))
+  interaction.plot(data.mom$pop, data.mom$dens, data.mom$pctimm, xlab='population', ylab='%imm')
+  interaction.plot(data.mom$pop, data.mom$zone, data.mom$pctimm, xlab='population', ylab='%imm')
+  interaction.plot(data.mom$dens, data.mom$pop, data.mom$pctimm, xlab='density', ylab='%imm')
+  interaction.plot(data.mom$zone, data.mom$pop, data.mom$pctimm, xlab='zone', ylab='%imm')
+  par(mfrow=c(1,1))
+  
+  # VE quantitative
+  plot (pctimm ~ buf15, data=data.mom)
+  plot (pctimm ~ dbh, data=data.mom)
+  plot (pctimm ~ size.pop, data=data.mom)
+  
+  # Distribution VR
+  histogram(~ pctimm|pop, data=data.mom)
+  histogram(~ pctimm|dens, data=data.mom)
+  histogram(~ pctimm|zone, data=data.mom)
+  
+  qqnorm(data.mom$pctimm)
+  qqline(data.mom$pctimm)
+  
+  # Diagrama dispersión
+    # para evaluar la relación entre variables
+  Z <- cbind(data.mom$pctimm, data.mom[,c(3,10,11)])
+  pairs(Z, panel = panel.smooth, diag.panel = panel.hist)
+
+```
+
+## GLMM - 'pop' random factor
+# Modelo global. Todas VE: neighbourhood density (buf15) + dbh + zone
+ 
+```{r model selection}
+
+library(lme4)
+  # c) Ajuste de la estructura óptima para el componente fijo (hay que hacerlo con LM)
+    m1 <- glmer(cbind(nimm,nembr-nimm) ~ buf15*dbh+zone+zone:buf15 + (1|pop), family = binomial, data= data.mom)
+    summary(m1)
+    m2 <- update(m1, ~.-buf15:zone, data= data.mom)
+    anova(m1,m2) 
+    summary(m2)
+    m3 <- update(m2, ~.-buf15:dbh, data= data.mom)
+    anova(m2,m3)
+    summary(m3)
+    m4 <- update(m3, ~.-zone, data= data.mom)
+    anova(m3,m4)
+    summary(m4)
+    m5 <- update(m4, ~.-buf15, data= data.mom)
+    anova(m4,m5)
+    summary(m5)
+    m6 <- update(m5, ~.-dbh, data= data.mom)
+    anova(m5,m6)
+    summary(m6)
+      # dbh es significativo
+ 
+    # d) AICw
+cands.gr <- list(m1,m2,m3,m4,m5,m6)  
+Modnames.gr <- c("saturated", "no zone inter","no dbh inter","buf15+dbh","dbh","null")
+aictab(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE)
+confset(cand.set=cands.gr, modnames = Modnames.gr, second.ord=FALSE, method='ordinal')
+evidence(aictab(cand.set=cands, modnames = Modnames, second.ord=FALSE))
+
+    
+  # e) Validación e interpretación del modelo final
+    res <- residuals(m.final)
+    fit <- fitted(m.final)
+    par(mfrow=c(2,2))
+    plot(res ~ fit, xlab="Fitted values", ylab="Residuals", main="Residuals vs. fitted")
+    abline(h=0)
+    boxplot(res ~ data.mom$pop, ylab="Residuals", main="Populations")
+    abline(h=0, lty=3)
+    hist(res, main="Histogram of residuals", xlab="Residuals")
+    qqnorm(res)
+    qqline(res)
+    
+###
+

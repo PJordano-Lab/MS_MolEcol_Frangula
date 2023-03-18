@@ -1,0 +1,458 @@
+---
+title: "glmm_allRich_Cervus"
+author: "EvaM"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r data}
+data.mom <- read.csv("GLM_progeny.csv", header=TRUE, sep=";", dec=",", na.strings=".")
+head(data.mom)
+str(data.mom)
+```
+
+```{r correlations response var}
+shapiro.test(data.mom$genediv) #datos no normales
+shapiro.test(data.mom$npoll)
+shapiro.test(data.mom$allrich) #datos no normales
+shapiro.test(data.mom$kinship) #datos no normales
+
+print(cor(data.mom[, c('genediv','npoll','allrich','kinship','Nep','Fis','pctimm', 'dist_median')]))
+
+library("ggpubr")
+cor.test(data.mom$kinship, data.mom$npoll, method=c("spearman"))
+
+
+```
+
+We perform model selection with allelic richness as the response variable, and the following fixed effects: dbh, tree density on 15m buffer, and sector of the ravine (up/down)
+
+```{r allelic richness}
+## Data exploration:
+  # VE qualitative
+    par(mfrow=c(1,3))
+    boxplot(allrich ~ dens, data=data.mom, ylab='allelic richness', xlab='density', notch=TRUE)
+    boxplot(allrich ~ zone, data=data.mom, ylab='allelic richness', xlab='zone', notch=TRUE)
+    boxplot(allrich ~ pop, data=data.mom, ylab='allelic richness', xlab='population', notch=TRUE)
+        # Notches overlap --> medians not different
+    par(mfrow=c(1,2))
+    interaction.plot(data.mom$pop, data.mom$dens, data.mom$allrich, xlab='population', 
+                     ylab='allelic richness')
+    interaction.plot(data.mom$pop, data.mom$zone, data.mom$allrich, xlab='population', 
+                     ylab='allelic richness')
+    interaction.plot(data.mom$dens, data.mom$pop, data.mom$allrich, xlab='density', 
+                     ylab='allelic richness')
+    interaction.plot(data.mom$zone, data.mom$pop, data.mom$allrich, xlab='zone', 
+                     ylab='allelic richness')
+    par(mfrow=c(1,1))
+
+  # VE quantitative
+    plot (allrich ~ buf15, data=data.mom)
+    plot (pctnpoll ~ buf15, data=data.mom)
+    plot (allrich ~ dbh, data=data.mom)
+    plot (allrich ~ size.pop, data=data.mom)
+
+  # Outliers
+    dotchart(data.mom$allrich, main='allelic richness')
+    data.mom$color[data.mom$pop=='JV'] <- 'blue'
+    data.mom$color[data.mom$pop=='S1'] <- 'yellow'
+    data.mom$color[data.mom$pop=='S2'] <- 'green'
+    data.mom$color[data.mom$pop=='ZP'] <- 'red'
+    dotchart(data.mom$allrich, groups=data.mom$pop, color=data.mom$color, pch=19, 
+             main='allelic richness')
+    dotchart(data.mom$allrich, groups=data.mom$dens, main='allelic richness')
+    dotchart(data.mom$allrich, groups=data.mom$zone, main='allelic richness')
+
+  # Distribution VR
+    histogram(~ allrich|pop, data=data.mom)
+    histogram(~ allrich|dens, data=data.mom)
+    histogram(~ allrich|zone, data=data.mom)
+
+    qqnorm(data.mom$allrich)
+    qqline(data.mom$allrich)
+
+  # Diagrama dispersión
+    # para evaluar la relación entre variables
+    Z <- cbind(data.mom$allrich, data.mom[,c(3,10,11)])
+    pairs(Z, panel = panel.smooth, diag.panel = panel.hist)
+        # Sugiere que la riqueza alélica no depende de VEs
+```
+
+```{r modelo}
+# 1) Modelo a escala de canuto. VE: zona
+
+  par(mfrow=c(1,1))
+  boxplot(allrich ~ zone, data= data.mom) # relación gráfica entre VR y VE
+  m.lm <- lm(allrich ~ zone, data=data.mom)
+  par(mfrow=c(2,2))
+  plot(m.lm)
+  
+  library(nlme)
+  m.gls <- gls (allrich ~ zone, data= data.mom) # gls para poder comparar modelo linear con el mixto
+  m.lme <- lme (allrich ~ zone, random = ~ 1|pop, data= data.mom, method='REML')
+  anova(m.gls, m.lme)
+  
+  res <- resid(m.lme, type='normalized')
+  fit <- fitted (m.lme)
+  par(mfrow=c(1,2))
+  plot(fit, res, xlab='Fiteed values', ylab='Residuals')
+  boxplot(res ~ zone, data=data.mom, ylab='Residuals')
+  
+  summary(m.lme)
+    # AIC = 123.294
+    # varianza residual = 1.217^2 (la salida da 'sigma')
+    # varianza intercepta aleatoria = 0.541^2
+    # los efectos fijos son: intercepta: 4.139 y pendiente: -1.023  (p=0.019, significativos)
+  
+  library(lme4)
+  m.lmer <- lmer(allrich ~ zone + (1|pop), data= data.mom)
+  summary(m.lmer)
+    # lmer no da test de significación (probabilidad) para los efectos fijos.
+    # se pueden conseguir comparando modelos encajados y cuyos efectos aleatorios no cambien con AIC (o BIC):
+    m.lmer0 <- lmer(allrich ~ zone + (1|pop), data= data.mom, REML = F)
+    m.lmer1 <- lmer(allrich ~ 1 + (1|pop), data= data.mom, REML = F)
+    anova(m.lmer0, m.lmer1)
+        # --> zone sí parece significativo
+  
+  m.final <- lme(allrich ~ zone, random = ~ 1|pop, data= data.mom)
+  summary(m.final)
+      # AIC = 123.294
+      # BIC = 129.280
+  
+  plot(m.final)
+  par(mfrow=c(2,2))
+  res <- resid(m.final, type='normalized')
+  fit <- fitted (m.final)
+  plot(fit, res, xlab='Fitted values', ylab='Residuals')
+  abline(h=0, lty = 3)
+  boxplot(res ~ data.mom$pop, ylab="Residuals", main="Populations")
+  abline(h=0, lty=3)
+  hist(res, main = "Histogram of residuals", xlab = "Residuals")
+  qqnorm(res)
+  qqline(res)  
+  par(mfrow=c(1,1))
+  plot(res ~ zone, data=data.mom, ylab='Residuals') 
+  abline(h=0, lty = 3)
+
+```
+
+```{r}
+# 2) Modelo a escala local. VE: neighbourhood density (buf15) + dbh
+
+  m.lm <- lm(allrich ~ buf15*dbh, data=data.mom)
+  par(mfrow=c(2,2))
+  plot(m.lm)
+  
+  # a) Ajuste del modelo saturado (hay que hacerlo con REML)
+    # Sin término aleatorio (gls -minimos cuadrados generalizados- para ajustarlo con REML). "Todas" las VEs
+    m.gls <- gls (allrich ~ buf15*dbh, data= data.mom, method='REML') 
+    # Intercepta aleatoria. "Todas" las VEs
+    m.lme <- lme (allrich ~ buf15*dbh, random = ~ 1|pop, data= data.mom)
+  # b) Ajuste de la estructura óptima para el componente aleatorio
+    AIC(m.gls, m.lme)
+    anova(m.gls, m.lme)
+  # c) Ajuste de la estructura óptima para el componente fijo (hay que hacerlo con LM)
+    m1 <- lme(allrich ~ buf15*dbh, random = ~ 1|pop, data= data.mom, method='ML')
+    m2 <- update(m1, ~.-buf15:dbh, data= data.mom)
+    anova(m1,m2) 
+        # la interaccion no es significativa en el modelo
+    summary(m2)
+    m3 <- update(m2, ~.-dbh, data= data.mom)
+    anova(m2,m3)
+        # el dbh tampoco explica mi VR
+    summary(m3)
+    m4 <- update(m3, ~.-buf15, data= data.mom)
+    anova(m3,m4)
+        # buf15 si es significativo y no podemos quitarlo del modelo
+  # d) Ajuste del modelo final con REML
+    m.final <- lme(allrich ~ buf15, random = ~ 1|pop, data= data.mom, method = "REML")
+    summary(m.final)
+        # AIC = 125.893
+        # BIC = 131.879
+        # varianza residual = 1.200^2 (la salida da 'sigma')
+        # varianza intercepta aleatoria = 0.447^2
+        # efectos fijos: intercepta: 4.371 y pendiente: -0.143  (p=0.0085, significativo)
+  # e) Validación e interpretación del modelo final
+    ## Residuos (estandarizados) vs. valores ajustados para comprobar la homogeneidad de varianzas
+    # son altos ('outliers') aquellos de valor >|2|
+    plot(m.final)
+    res <- resid(m.final, type='normalized')
+    fit <- fitted (m.final)
+    par(mfrow=c(2,2))
+    plot(fit, res, xlab='Fitted values', ylab='Residuals')
+    abline(h=0, lty = 3)
+    boxplot(res ~ data.mom$pop, ylab="Residuals", main="Populations")
+    abline(h=0, lty=3)
+    plot(res ~ buf15, data=data.mom, ylab='Residuals') 
+    abline(h=0, lty = 3)
+    
+    ## Histogramas y gráficos de cuantiles de los residuos para comprobar normalidad.
+    hist(res, main = "Histogram of residuals", xlab = "Residuals")
+    qqnorm(res)
+    qqline(res)  
+    identify(x = qqnorm(res, plot.it=FALSE)$x, 
+             y = qqnorm(res,plot.it=FALSE)$y, 
+             labels = data.mom$mother)
+    
+    # ¿Cómo se comparan las predicciones del modelo de regresión, con las observaciones?
+    (micomparacion <- data.frame(
+      sample = data.mom$mother,
+      prediccion = predict(m.final), 
+      observacion = data.mom$allrich,
+      residuo = residuals(m.final)))    
+    # Correlacionamos nuestras observaciones con las predicciones para ver cómo de bueno es el modelo.
+    cor.test(micomparacion$prediccion, micomparacion$observacion, method="pearson")
+```
+
+```{r}
+# 3) Modelo global. Todas VE: neighbourhood density (buf15) + dbh + zone
+
+  m.lm <- lm(allrich ~ buf15*dbh*zone, data=data.mom)
+  par(mfrow=c(2,2))
+  plot(m.lm)
+  
+  # a) Ajuste del modelo saturado (hay que hacerlo con REML)
+    # Sin término aleatorio (gls -minimos cuadrados generalizados- para ajustarlo con REML). "Todas" las VEs
+    m.gls <- gls (allrich ~ buf15*dbh*zone, data= data.mom, method='REML') 
+    # Intercepta aleatoria. "Todas" las VEs
+    m.lme <- lme (allrich ~ buf15*dbh*zone, random = ~ 1|pop, data= data.mom)
+  # b) Ajuste de la estructura óptima para el componente aleatorio
+    AIC(m.gls, m.lme)
+    anova(m.gls, m.lme)
+  # c) Ajuste de la estructura óptima para el componente fijo (hay que hacerlo con LM)
+    m1 <- lme(allrich ~ buf15*dbh+zone+zone:buf15, random = ~ 1|pop, data= data.mom, method='ML')
+    summary(m1)
+    m2 <- update(m1, ~.-buf15:zone, data= data.mom)
+    anova(m1,m2) 
+    summary(m2)
+    m3 <- update(m2, ~.-buf15:dbh, data= data.mom)
+    anova(m2,m3)
+    summary(m3)
+    m4 <- update(m3, ~.-zone, data= data.mom)
+    anova(m3,m4)
+    summary(m4)
+    m5 <- update(m4, ~.-buf15, data= data.mom)
+    anova(m4,m5) 
+    summary(m5)
+    m6 <- update(m5, ~.-dbh, data= data.mom)
+    anova(m5,m6)
+      
+ 
+     # d) Ajuste del modelo final con REML
+    m.final <- lme(allrich ~ buf15, random = ~ 1|pop, data= data.mom, method = "REML")
+    anova(m.final) #p-value
+    summary(m.final)
+    coef(m.final)
+    
+    #2º modelo con Delta_AIC<2 
+    m.final2 <- lme(allrich ~ buf15+zone, random = ~ 1|pop, data= data.mom, method='REML')
+    summary(m.final2)
+    anova(m.final2) #p-value
+    coef(m.final2)
+  
+  # e) Validación e interpretación del modelo final
+  # Idem al apartado anterios, modelo 2, pues el modelo final que nos quedó es el mismo
+
+  # Alternativamente podemos hacer un dredge
+  ms1 <- dredge(m1, trace = TRUE, rank = "AICc", REML = FALSE)
+  fmList <- get.models(ms1, 1:4)
+  summary(model.avg(fmList))
+
+
+kk <- lm(allrich ~ leng, data=data.mom)
+anova(m1)
+summary(m1)
+par(mfrow=c(2,2))
+plot(m1)
+
+
+# AICw
+library(lme4); library(nlme) 
+library(RVAideMemoire); library(glmmADMB); library(AICcmodavg); library(MuMIn)
+
+cands.gr <- list(m1,m2,m3,m4,m5,m6)  
+Modnames.gr <- c("total","no zone inter","no dbh inter","buf15+dbh","dbh","null")
+aictab(cand.set = cands.gr, modnames = Modnames.gr)
+confset(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE, method='ordinal')
+evidence(aictab(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE))
+```
+
+```{r Genetic Diversity}
+# 3) Modelo global. Todas VE: neighbourhood density (buf15) + dbh + zone
+
+  m.lm <- lm(genediv ~ buf15*dbh*zone, data=data.mom)
+  par(mfrow=c(2,2))
+  plot(m.lm)
+  
+  # a) Ajuste del modelo saturado (hay que hacerlo con REML)
+    # Sin término aleatorio (gls -minimos cuadrados generalizados- para ajustarlo con REML). "Todas" las VEs
+    m.gls <- gls (genediv ~ buf15*dbh*zone, data= data.mom, method='REML') 
+    # Intercepta aleatoria. "Todas" las VEs
+    m.lme <- lme (genediv ~ buf15*dbh*zone, random = ~ 1|pop, data= data.mom)
+  # b) Ajuste de la estructura óptima para el componente aleatorio
+    AIC(m.gls, m.lme)
+    anova(m.gls, m.lme)
+  # c) Ajuste de la estructura óptima para el componente fijo (hay que hacerlo con LM)
+    m1 <- lme(genediv ~ buf15*dbh+zone+zone:buf15, random = ~ 1|pop, data= data.mom, method='ML')
+    summary(m1)
+    m2 <- update(m1, ~.-buf15:zone, data= data.mom)
+    anova(m1,m2) 
+    summary(m2)
+    m3 <- update(m2, ~.-buf15:dbh, data= data.mom)
+    anova(m2,m3)
+    summary(m3)
+    m4 <- update(m3, ~.-buf15, data= data.mom)
+    anova(m3,m4)
+    summary(m4)
+    m5 <- update(m4, ~.-zone, data= data.mom)
+    anova(m4,m5) 
+    summary(m5)
+    m6 <- update(m5, ~.-dbh, data= data.mom)
+    anova(m5,m6)
+  
+  # e) Validación e interpretación del modelo final
+  # Idem al apartado anterios, modelo 2, pues el modelo final que nos quedó es el mismo
+
+  # Alternativamente podemos hacer un dredge
+  ms1 <- dredge(m1, trace = TRUE, rank = "AICc", REML = FALSE)
+  fmList <- get.models(ms1, 1:4)
+  summary(model.avg(fmList))
+
+
+kk <- lm(genediv ~ leng, data=data.mom)
+anova(m1)
+summary(m1)
+par(mfrow=c(2,2))
+plot(m1)
+
+
+# AICw
+library(lme4); library(nlme) 
+library(RVAideMemoire); library(glmmADMB); library(AICcmodavg); library(MuMIn)
+
+cands.gr <- list(m1,m2,m3,m4,m5,m6)  
+Modnames.gr <- c("total","no zone inter","no dbh inter","zone+dbh","dbh","null")
+aictab(cand.set = cands.gr, modnames = Modnames.gr)
+confset(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE, method='ordinal')
+evidence(aictab(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE))
+```
+
+```{r Effective pollen donors}
+# 3) Modelo global. Todas VE: neighbourhood density (buf15) + dbh + zone
+
+  m.lm <- lm(Nep ~ buf15*dbh*zone, data=data.mom)
+  par(mfrow=c(2,2))
+  plot(m.lm)
+  
+  # a) Ajuste del modelo saturado (hay que hacerlo con REML)
+    # Sin término aleatorio (gls -minimos cuadrados generalizados- para ajustarlo con REML). "Todas" las VEs
+    m.gls <- gls (Nep ~ buf15*dbh*zone, data= data.mom, method='REML') 
+    # Intercepta aleatoria. "Todas" las VEs
+    m.lme <- lme (Nep ~ buf15*dbh*zone, random = ~ 1|pop, data= data.mom)
+  # b) Ajuste de la estructura óptima para el componente aleatorio
+    AIC(m.gls, m.lme)
+    anova(m.gls, m.lme)
+  # c) Ajuste de la estructura óptima para el componente fijo (hay que hacerlo con LM)
+    m1 <- lme(Nep ~ buf15*dbh+zone+zone:buf15, random = ~ 1|pop, data= data.mom, method='ML')
+    summary(m1)
+    m2 <- update(m1, ~.-buf15:zone, data= data.mom)
+    anova(m1,m2) 
+    summary(m2)
+    m3 <- update(m2, ~.-buf15:dbh, data= data.mom)
+    anova(m2,m3)
+    summary(m3)
+    m4 <- update(m3, ~.-buf15, data= data.mom)
+    anova(m3,m4)
+    summary(m4)
+    m5 <- update(m4, ~.-zone, data= data.mom)
+    anova(m4,m5) 
+    summary(m5)
+    m6 <- update(m5, ~.-dbh, data= data.mom)
+    anova(m5,m6)
+  
+  # e) Validación e interpretación del modelo final
+    
+  # Alternativamente podemos hacer un dredge
+  ms1 <- dredge(m1, trace = TRUE, rank = "AICc", REML = FALSE)
+  fmList <- get.models(ms1, 1:4)
+  summary(model.avg(fmList))
+
+
+kk <- lm(Nep ~ leng, data=data.mom)
+anova(m1)
+summary(m1)
+par(mfrow=c(2,2))
+plot(m1)
+
+
+# AICw
+library(lme4); library(nlme) 
+library(RVAideMemoire); library(glmmADMB); library(AICcmodavg); library(MuMIn)
+
+cands.gr <- list(m1,m2,m3,m4,m5,m6)  
+Modnames.gr <- c("total","no zone inter","no dbh inter","zone+dbh","dbh","null")
+aictab(cand.set = cands.gr, modnames = Modnames.gr)
+confset(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE, method='ordinal')
+evidence(aictab(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE))
+```
+
+
+```{r kinship}
+# 3) Modelo global. Todas VE: neighbourhood density (buf15) + dbh + zone
+
+  m.lm <- lm(kinship ~ buf15*dbh*zone, data=data.mom)
+  par(mfrow=c(2,2))
+  plot(m.lm)
+  
+  # a) Ajuste del modelo saturado (hay que hacerlo con REML)
+    # Sin término aleatorio (gls -minimos cuadrados generalizados- para ajustarlo con REML). "Todas" las VEs
+    m.gls <- gls (kinship ~ buf15*dbh*zone, data= data.mom, method='REML') 
+    # Intercepta aleatoria. "Todas" las VEs
+    m.lme <- lme (kinship ~ buf15*dbh*zone, random = ~ 1|pop, data= data.mom)
+  # b) Ajuste de la estructura óptima para el componente aleatorio
+    AIC(m.gls, m.lme)
+    anova(m.gls, m.lme)
+  # c) Ajuste de la estructura óptima para el componente fijo (hay que hacerlo con LM)
+    m1 <- lme(kinship ~ buf15*dbh+zone+zone:buf15, random = ~ 1|pop, data= data.mom, method='ML')
+    summary(m1)
+    m2 <- update(m1, ~.-buf15:zone, data= data.mom)
+    anova(m1,m2) 
+    summary(m2)
+    m3 <- update(m2, ~.-buf15:dbh, data= data.mom)
+    anova(m2,m3)
+    summary(m3)
+    m4 <- update(m3, ~.-dbh, data= data.mom)
+    anova(m3,m4)
+    summary(m4)
+    m5 <- update(m4, ~.-zone, data= data.mom)
+    anova(m4,m5) 
+    summary(m5)
+    m6 <- update(m5, ~.-buf15, data= data.mom)
+    anova(m5,m6)
+  #buf15 es significativo en el modelo
+    
+  # e) Validación e interpretación del modelo final
+
+  # Alternativamente podemos hacer un dredge
+  ms1 <- dredge(m1, trace = TRUE, rank = "AICc", REML = FALSE)
+  fmList <- get.models(ms1, 1:4)
+  summary(model.avg(fmList))
+
+
+kk <- lm(kinship ~ leng, data=data.mom)
+anova(m1)
+summary(m1)
+par(mfrow=c(2,2))
+plot(m1)
+
+
+# AICw
+library(lme4); library(nlme) 
+library(RVAideMemoire); library(glmmADMB); library(AICcmodavg); library(MuMIn)
+
+cands.gr <- list(m1,m2,m3,m4,m5,m6)  
+Modnames.gr <- c("total","no zone inter","no dbh inter","zone+buf","buf","null")
+aictab(cand.set = cands.gr, modnames = Modnames.gr)
+confset(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE, method='ordinal')
+evidence(aictab(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE))
+```

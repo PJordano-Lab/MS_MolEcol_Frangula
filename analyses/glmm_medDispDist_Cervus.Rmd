@@ -1,0 +1,357 @@
+---
+title: "glmm_medDispDist_Cervus"
+author: "EvaM"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Previously to re-run GLMMs with new results obtained from Cervus, we estimate the variable "median dispersal distance"
+
+```{r dispersal distance estimate}
+p.dist <- read.csv("pair_distances.csv", header=TRUE, sep=",", dec=".", na.strings=".")
+head(p.dist)
+
+#We estimate median dispersal distance by mom
+disp.dist <-  p.dist %>%
+  group_by(mother) %>%
+  summarise(medDispDist = median(SpDist), maxDispDist = max(SpDist))
+ 
+write.csv(disp.dist, file="disp_distance_by_mom.csv")
+```
+
+To re-run GLMMs, see glm_mother.R and all the files by variable (PctImmigration.R, GLMM_Pollen_donor.R, median). Code from Rocio.
+
+```{r data}
+data.mom <- read.table("glm_progeny.txt", header=TRUE, sep="\t", dec=",", na.strings=".")
+head(data.mom)
+str(data.mom)
+```
+
+We perform model selection with median dispersal distance as the response variable, and the following fixed effects: dbh, tree density on 15m buffer, and sector of the ravine (up/down)
+
+```{r median distance}
+# Tras análisis exploratorio, trasnformar VR ya que no tiene distribución normal y posee valores extremos
+data.mom$dist_median.SQ <- sqrt(data.mom$dist_median)
+data.mom$dist_median.SQ4 <- data.mom$dist_median^(0.25)
+data.mom$dist_median.Log <- log(data.mom$dist_median+1)
+
+par(mfrow=c(1,2))
+boxplot(data.mom$dist_median ~ data.mom$pop)
+boxplot(data.mom$dist_median.Log ~ data.mom$pop)
+boxplot(data.mom$dist_median ~ data.mom$buf15)
+boxplot(data.mom$dist_median.Log ~ data.mom$buf15)
+boxplot(data.mom$dist_median.Log ~ data.mom$zone)
+
+par(mfrow=c(2,2))
+qqnorm(data.mom$dist_median, main='variable original (p=1)') 
+qqline(data.mom$dist_median)
+qqnorm(data.mom$dist_median.SQ, main='Raiz cuadrada (p=0.5)')
+qqline(data.mom$dist_median.SQ)
+qqnorm(data.mom$dist_median.SQ4, main='Raiz cuarta (p=0.25)')
+qqline(data.mom$dist_median.SQ4)
+qqnorm(data.mom$dist_median.Log, main='Logaritmo (p=0)')
+qqline(data.mom$dist_median.Log)
+  # la transformación 'Log' es la más correcta
+```
+
+```{r}
+# 1) Modelo a escala de canuto. VE: zona
+
+  par(mfrow=c(1,1))
+  boxplot(dist_median.Log ~ zone, data= data.mom) # relación gráfica entre VR y VE
+  m.lm <- lm(dist_median.Log ~ zone, data=data.mom)
+  par(mfrow=c(2,2))
+  plot(m.lm)
+  
+  m.gls <- gls (dist_median.Log ~ zone, data= data.mom) # gls para poder comparar modelo linear con el mixto
+  m.lme <- lme (dist_median.Log ~ zone, random = ~ 1|pop, data= data.mom, method='REML')
+  anova(m.gls, m.lme)
+  
+  res <- resid(m.lme, type='normalized')
+  fit <- fitted (m.lme)
+  par(mfrow=c(1,2))
+  plot(fit, res, xlab='Fiteed values', ylab='Residuals')
+  boxplot(res ~ zone, data=data.mom, ylab='Residuals')
+  
+  summary(m.lme)
+    # AIC = 123.294
+    # varianza residual = 1.217^2 (la salida da 'sigma')
+    # varianza intercepta aleatoria = 0.541^2
+    # los efectos fijos son: intercepta: 4.139 y pendiente: -1.023  (p=0.019, significativos)
+    
+  m.lmer <- lmer(dist_median.Log ~ zone + (1|pop), data= data.mom)
+  summary(m.lmer)
+    # lmer no da test de significación (probabilidad) para los efectos fijos.
+    # se pueden conseguir comparando modelos encajados y cuyos efectos aleatorios no cambien con AIC (o BIC):
+    m.lmer0 <- lmer(dist_median.Log ~ zone + (1|pop), data= data.mom, REML = F)
+    m.lmer1 <- lmer(dist_median.Log ~ 1 + (1|pop), data= data.mom, REML = F)
+    anova(m.lmer0, m.lmer1)
+        # --> zone sí parece significativo
+  
+  m.final <- lme(dist_median.Log ~ zone, random = ~ 1|pop, data= data.mom)
+  summary(m.final)
+      # AIC = 123.294
+      # BIC = 129.280
+  
+  plot(m.final)
+  par(mfrow=c(2,2))
+  res <- resid(m.final, type='normalized')
+  fit <- fitted (m.final)
+  plot(fit, res, xlab='Fitted values', ylab='Residuals')
+  abline(h=0, lty = 3)
+  boxplot(res ~ data.mom$pop, ylab="Residuals", main="Populations")
+  abline(h=0, lty=3)
+  hist(res, main = "Histogram of residuals", xlab = "Residuals")
+  qqnorm(res)
+  qqline(res)  
+  par(mfrow=c(1,1))
+  plot(res ~ zone, data=data.mom, ylab='Residuals') 
+  abline(h=0, lty = 3)
+
+```
+
+```{r}
+# 2) Modelo a escala local. VE: neighbourhood density (buf15) + dbh
+
+  m.lm <- lm(dist_median.Log ~ buf15*dbh, data=data.mom)
+  par(mfrow=c(2,2))
+  plot(m.lm)
+  
+  # a) Ajuste del modelo saturado (hay que hacerlo con REML)
+    # Sin término aleatorio (gls -minimos cuadrados generalizados- para ajustarlo con REML). "Todas" las VEs
+    m.gls <- gls (dist_median.Log ~ buf15*dbh, data= data.mom, method='REML') 
+    # Intercepta aleatoria. "Todas" las VEs
+    m.lme <- lme (dist_median.Log ~ buf15*dbh, random = ~ 1|pop, data= data.mom)
+  # b) Ajuste de la estructura óptima para el componente aleatorio
+    AIC(m.gls, m.lme)
+    anova(m.gls, m.lme)
+  # c) Ajuste de la estructura óptima para el componente fijo (hay que hacerlo con LM)
+    m1 <- lme(dist_median.Log ~ buf15*dbh, random = ~ 1|pop, data= data.mom, method='ML')
+    m2 <- update(m1, ~.-buf15:dbh, data= data.mom)
+    anova(m1,m2) 
+        # la interaccion no es significativa en el modelo
+    summary(m2)
+    m3 <- update(m2, ~.-dbh, data= data.mom)
+    anova(m2,m3)
+        # el dbh tampoco explica mi VR
+    summary(m3)
+    m4 <- update(m3, ~.-buf15, data= data.mom)
+    anova(m3,m4)
+        # buf15 si es significativo y no podemos quitarlo del modelo
+  # d) Ajuste del modelo final con REML
+    m.final <- lme(dist_median.Log ~ buf15, random = ~ 1|pop, data= data.mom, method = "REML")
+    summary(m.final)
+        # AIC = 125.893
+        # BIC = 131.879
+        # varianza residual = 1.200^2 (la salida da 'sigma')
+        # varianza intercepta aleatoria = 0.447^2
+        # efectos fijos: intercepta: 4.371 y pendiente: -0.143  (p=0.0085, significativo)
+  # e) Validación e interpretación del modelo final
+    ## Residuos (estandarizados) vs. valores ajustados para comprobar la homogeneidad de varianzas
+    # son altos ('outliers') aquellos de valor >|2|
+    plot(m.final)
+    res <- resid(m.final, type='normalized')
+    fit <- fitted (m.final)
+    par(mfrow=c(2,2))
+    plot(fit, res, xlab='Fitted values', ylab='Residuals')
+    abline(h=0, lty = 3)
+    boxplot(res ~ data.mom$pop, ylab="Residuals", main="Populations")
+    abline(h=0, lty=3)
+    plot(res ~ buf15, data=data.mom, ylab='Residuals') 
+    abline(h=0, lty = 3)
+    
+    ## Histogramas y gráficos de cuantiles de los residuos para comprobar normalidad.
+    hist(res, main = "Histogram of residuals", xlab = "Residuals")
+    qqnorm(res)
+    qqline(res)  
+    identify(x = qqnorm(res, plot.it=FALSE)$x, 
+             y = qqnorm(res,plot.it=FALSE)$y, 
+             labels = data.mom$mother)
+    
+    # ¿Cómo se comparan las predicciones del modelo de regresión, con las observaciones?
+    (micomparacion <- data.frame(
+      sample = data.mom$mother,
+      prediccion = predict(m.final), 
+      observacion = data.mom$dist_median.Log,
+      residuo = residuals(m.final)))    
+    # Correlacionamos nuestras observaciones con las predicciones para ver cómo de bueno es el modelo.
+    cor.test(micomparacion$prediccion, micomparacion$observacion, method="pearson")
+```
+
+```{r}
+# 3) Modelo global. Todas VE: neighbourhood density (buf15) + dbh + zone
+
+  m.lm <- lm(dist_median.Log ~ buf15*dbh*zone, data=data.mom)
+  par(mfrow=c(2,2))
+  plot(m.lm)
+  
+  # a) Ajuste del modelo saturado (hay que hacerlo con REML)
+    # Sin término aleatorio (gls -minimos cuadrados generalizados- para ajustarlo con REML). "Todas" las VEs
+    m.gls <- gls (dist_median.Log ~ buf15*dbh*zone, data= data.mom, method='REML') 
+    # Intercepta aleatoria. "Todas" las VEs
+    m.lme <- lme (dist_median.Log ~ buf15*dbh*zone, random = ~ 1|pop, data= data.mom)
+  # b) Ajuste de la estructura óptima para el componente aleatorio
+    AIC(m.gls, m.lme)
+    anova(m.gls, m.lme)
+  # c) Ajuste de la estructura óptima para el componente fijo (hay que hacerlo con LM)
+    m1 <- lme(dist_median.Log ~ buf15*dbh+zone+zone:buf15, random = ~ 1|pop, data= data.mom, method='ML')
+    summary(m1)
+    m2 <- update(m1, ~.-buf15:zone, data= data.mom)
+    anova(m1,m2) 
+    summary(m2)
+    m3 <- update(m2, ~.-buf15:dbh, data= data.mom)
+    anova(m2,m3)
+    summary(m3)
+    m4 <- update(m3, ~.-dbh, data= data.mom)
+    anova(m3,m4)
+    summary(m4)
+    m5 <- update(m4, ~.-zone, data= data.mom)
+    anova(m4,m5) 
+    summary(m5)
+    m6 <- update(m5, ~.-buf15, data= data.mom)
+    anova(m5,m6)
+        # buf15 si es significativo y no podemos quitarlo del modelo
+ 
+     # d) Ajuste del modelo final con REML
+    m.final <- lme(dist_median.Log ~ buf15, random = ~ 1|pop, data= data.mom, method = "REML")
+    anova(m.final) #p-value
+    summary(m.final)
+    coef(m.final)
+    
+    #2º modelo con Delta_AIC<2 
+    m.final2 <- lme(dist_median.Log ~ buf15+zone, random = ~ 1|pop, data= data.mom, method='REML')
+    summary(m.final2)
+    anova(m.final2) #p-value
+    coef(m.final2)
+  
+  # e) Validación e interpretación del modelo final
+  # Idem al apartado anterios, modelo 2, pues el modelo final que nos quedó es el mismo
+
+  # Alternativamente podemos hacer un dredge
+  ms1 <- dredge(m1, trace = TRUE, rank = "AICc", REML = FALSE)
+  fmList <- get.models(ms1, 1:4)
+  summary(model.avg(fmList))
+
+# Modelo 1 (zona) --> zona significativa
+# Modelo 2 (buf15*dbh) --> densidad significativa
+# Modelo 3 (all:zona, buf15, dbh) --> zona pierde la significancia y solo es la densidad
+
+kk <- lm(dist_median.Log ~ leng, data=data.mom)
+anova(m1)
+summary(m1)
+par(mfrow=c(2,2))
+plot(m1)
+
+oneway.test(dist_median.Log ~ leng , data=data.mom)
+m2 <- aov(dist_median.Log ~ pop, data=data.mom)
+TukeyHSD(m2)
+plot(TukeyHSD(m2))
+
+# AICw
+library(lme4); library(nlme) 
+library(RVAideMemoire); library(glmmADMB); library(AICcmodavg); library(MuMIn)
+
+cands.gr <- list(m1,m2,m3,m4,m5,m6)  
+Modnames.gr <- c("total","no zone inter","no dbh inter","buf15+zone","buf15","null")
+aictab(cand.set = cands.gr, modnames = Modnames.gr)
+
+aictab(cand.set=cands.gr, modnames = Modnames.gr, second.ord=FALSE)
+confset(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE, method='ordinal')
+evidence(aictab(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE))
+```
+
+We do the same with the response variable "max. dispersal distance" but we find no effects as the population effect (stream lenght) absorbs all the variation 
+
+```{r max distance}
+# Tras análisis exploratorio, trasnformar VR ya que no tiene distribución normal y posee valores extremos
+  hist(data.mom$dist_max)
+  
+  data.mom$dist_max.SQ <- sqrt(data.mom$dist_max)
+data.mom$dist_max.SQ4 <- data.mom$dist_max^(0.25)
+data.mom$dist_max.Log <- log(data.mom$dist_max+1)
+
+par(mfrow=c(1,2))
+boxplot(data.mom$dist_max ~ data.mom$pop)
+boxplot(data.mom$dist_max.SQ ~ data.mom$pop)
+boxplot(data.mom$dist_max ~ data.mom$buf15)
+boxplot(data.mom$dist_max.SQ ~ data.mom$buf15)
+
+par(mfrow=c(2,2))
+qqnorm(data.mom$dist_max, main='variable original (p=1)')
+qqline(data.mom$dist_max)
+qqnorm(data.mom$dist_max.SQ, main='Raiz cuadrada (p=0.5)')
+qqline(data.mom$dist_max.SQ)
+qqnorm(data.mom$dist_max.SQ4, main='Raiz cuarta (p=0.25)')
+qqline(data.mom$dist_max.SQ4)
+qqnorm(data.mom$dist_max.Log, main='Logaritmo (p=0)')
+qqline(data.mom$dist_max.Log)
+  # No sé si raíz cuadrada o log, es más correcta
+
+
+# 3) Modelo global. Todas VE: neighbourhood density (buf15) + dbh + zone
+
+  m.lm <- lm(dist_max.Log ~ buf15*dbh*zone, data=data.mom)
+  par(mfrow=c(2,2))
+  plot(m.lm)
+  
+  # a) Ajuste del modelo saturado (hay que hacerlo con REML)
+    # Sin término aleatorio (gls -minimos cuadrados generalizados- para ajustarlo con REML). "Todas" las VEs
+    m.gls <- gls (dist_max.Log ~ buf15*dbh*zone, data= data.mom, method='REML') 
+    # Intercepta aleatoria. "Todas" las VEs
+    m.lme <- lme (dist_max.Log ~ buf15*dbh*zone, random = ~ 1|pop, data= data.mom)
+  # b) Ajuste de la estructura óptima para el componente aleatorio
+    AIC(m.gls, m.lme)
+    anova(m.gls, m.lme)
+  # c) Ajuste de la estructura óptima para el componente fijo (hay que hacerlo con LM)
+    m1 <- lme(dist_max.Log ~ buf15*dbh+zone+zone:buf15, random = ~ 1|pop, data= data.mom, method='ML')
+    summary(m1)
+    m2 <- update(m1, ~.-buf15:dbh, data= data.mom)
+    anova(m1,m2) 
+    summary(m2)
+    m3 <- update(m2, ~.-buf15:zone, data= data.mom)
+    anova(m2,m3)
+    summary(m3)
+    m4 <- update(m3, ~.-zone, data= data.mom)
+    anova(m3,m4)
+    summary(m4)
+    m5 <- update(m4, ~.-buf15, data= data.mom)
+    anova(m4,m5)
+    summary(m5)
+    m6 <- update(m5, ~.-dbh, data= data.mom)
+    anova(m5,m6)
+  # d) Ajuste del modelo final con REML
+    m.final <- lme(dist_max.Log ~ 1, random = ~ 1|pop, data= data.mom, method = "REML")
+    summary(m.final)
+    
+  # e) Validación e interpretación del modelo final
+  # Idem al apartado anterios, modelo 2, pues el modelo final que nos quedó es el mismo
+
+Res.max <- residuals(m.final, type="normalized")
+Fit.max <- fitted(m.final)
+par(mfrow=c(2,2))
+plot(Res.max ~ Fit.max, xlab="Fitted values", ylab="Residuals", main="Residuals vs. fitted")
+abline(h=0)
+boxplot(Res.max ~ data.mom$pop, ylab="Residuals", main="Populations")
+abline(h=0, lty=3)
+hist(Res.max, main="Histogram of residuals", xlab="Residuals")
+qqnorm(Res.max)
+qqline(Res.max)
+
+par(mfrow=c(1,1))
+plot(m.final,log(dist_max)~fitted(.)) # Is VR reasonably linear function of the fitted values?
+boxplot(Res.max ~ data.mom$dens, ylab="Residuals", main="Density")
+boxplot(Res.max ~ data.mom$zone, ylab="Residuals", main="Zone")
+boxplot(Res.max ~ data.mom$pop, ylab='Residuals', main='Population')
+
+## Realmente en este caso la población está absorbiendo lo que realmente determina la distancia máxima de dispersión, que es el tamaño poblacional
+m1 <- lm(dist_max.Log ~ leng, data=data.mom)
+anova(m1)
+summary(m1)
+par(mfrow=c(2,2))
+plot(m1)
+
+oneway.test(dist_max.Log ~ leng , data=data.mom)
+m2 <- aov(dist_max.Log ~ pop, data=data.mom)
+TukeyHSD(m2)
+plot(TukeyHSD(m2))
+```

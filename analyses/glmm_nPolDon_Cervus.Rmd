@@ -1,0 +1,198 @@
+---
+title: "glmm_nPolDon_Cervus"
+author: "EvaM"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Previously to re-run GLMMs with new results obtained from Cervus, we estimate the variable "number of pollen donors"
+
+```{r pollen donor estimate}
+paternity <- read.table("paternity_1error.txt", header=TRUE, sep="\t", dec=".", na.strings=".")
+head(paternity)
+
+#We estimate "number of pollen donors" as the number of different fathers pollinating each single mother. Each immigration event counts as a different father (by probability)
+pater2 <- subset(paternity, pollen_origin != "unassigned-multipaternity")
+unique(pater2$pollen_origin) 
+
+library(dplyr)
+n.poll <-  pater2 %>%
+  group_by(Mother.ID) %>%
+  summarise(n.poll = length(unique(Candidate.father.ID)))
+
+write.csv(n.poll, file="n.pollen.donor.csv")
+
+```
+
+To re-run GLMMs, see glm_mother.R and all the files by variable (PctImmigration.R, GLMM_Pollen_donor.R, median). Code from Rocio.
+
+```{r data}
+data.mom <- read.csv("GLM_progeny.csv", header=TRUE, sep=";", dec=",", na.strings=".")
+head(data.mom)
+str(data.mom)
+```
+
+```{r data exploration}
+# VE qualitative
+par(mfrow=c(1,3))
+boxplot(pctpctnpoll ~ dens, data=data.mom, xlab='density', ylab='pctnpollen', notch=TRUE)
+boxplot(pctpctnpoll ~ zone, data=data.mom, xlab='zone', ylab='pctnpollen', notch=TRUE)
+boxplot(pctpctnpoll ~ pop, data=data.mom, xlab='population', ylab='pctnpollen', notch=TRUE)
+par(mfrow=c(1,2))
+interaction.plot(data.mom$pop, data.mom$dens, data.mom$pctnpoll, xlab='population', ylab='pctnpollen')
+interaction.plot(data.mom$pop, data.mom$zone, data.mom$pctnpoll, xlab='population', ylab='pctnpollen')
+interaction.plot(data.mom$dens, data.mom$pop, data.mom$pctnpoll, xlab='density', ylab='pctnpollen')
+interaction.plot(data.mom$zone, data.mom$pop, data.mom$pctnpoll, xlab='zone', ylab='pctnpollen')
+par(mfrow=c(1,1))
+  
+# VE quantitative
+plot (pctnpoll ~ buf15, data=data.mom)
+plot (pctnpoll ~ dbh, data=data.mom)
+plot (pctnpoll ~ size.pop, data=data.mom)
+  
+# Outliers
+dotchart(data.mom$pctnpoll, main='pctnpollen')
+data.mom$color[data.mom$pop=='JV'] <- 'blue'
+data.mom$color[data.mom$pop=='S1'] <- 'yellow'
+data.mom$color[data.mom$pop=='S2'] <- 'green'
+data.mom$color[data.mom$pop=='ZP'] <- 'red'
+dotchart(data.mom$pctnpoll, groups=data.mom$pop, color=data.mom$color,pch=19, main='pctnpollen')
+dotchart(data.mom$pctnpoll, groups=data.mom$dens, ylab='density', main='pctnpollen')
+dotchart(data.mom$pctnpoll, groups=data.mom$zone, ylab='zone', main='pctnpollen')
+  
+# Distribution VR
+histogram(~ pctnpoll|pop, data=data.mom)
+histogram(~ pctnpoll|dens, data=data.mom)
+histogram(~ pctnpoll|zone, data=data.mom)
+  
+qqnorm(data.mom$pctnpoll)
+qqline(data.mom$pctnpoll)
+  
+# Diagrama dispersión para evaluar la relación entre variables
+Z <- cbind(data.mom$pctnpoll, data.mom[,c(3,10,11)])
+pairs(Z, panel = panel.smooth, diag.panel = panel.hist)
+```
+
+## GLMM - 'pop' random factor
+# Modelo global. Todas VE: neighbourhood density (buf15) + dbh + zone
+
+```{r}
+# 3) Modelo global. Todas VE: neighbourhood density (buf15) + dbh + zone
+
+  m.lm <- lm(pctnpoll ~ buf15*dbh*zone, data=data.mom)
+  par(mfrow=c(2,2))
+  plot(m.lm)
+
+library(lme4); library(nlme)   
+  # a) Ajuste del modelo saturado (hay que hacerlo con REML)
+    # Sin término aleatorio (gls -minimos cuadrados generalizados- para ajustarlo con REML). "Todas" las VEs
+    m.gls <- gls (pctnpoll ~ buf15*dbh*zone, data= data.mom, method='REML') 
+    # Intercepta aleatoria. "Todas" las VEs
+    m.lme <- lme (pctnpoll ~ buf15*dbh*zone, random = ~ 1|pop, data= data.mom)
+  # b) Ajuste de la estructura óptima para el componente aleatorio
+    AIC(m.gls, m.lme)
+    anova(m.gls, m.lme)
+  # c) Ajuste de la estructura óptima para el componente fijo (hay que hacerlo con LM)
+    m1 <- lme(pctnpoll ~ buf15*dbh+zone+zone:buf15, random = ~ 1|pop, data= data.mom, method='ML')
+    summary(m1)
+    m2 <- update(m1, ~.-buf15:zone, data= data.mom)
+    anova(m1,m2) 
+    summary(m2)
+    m3 <- update(m2, ~.-buf15:dbh, data= data.mom)
+    anova(m2,m3)
+    summary(m3)
+    m4 <- update(m3, ~.-zone, data= data.mom)
+    anova(m3,m4)
+    summary(m4)
+    m5 <- update(m4, ~.-buf15, data= data.mom)
+    anova(m4,m5) 
+    summary(m5)
+    m6 <- update(m5, ~.-dbh, data= data.mom)
+    anova(m5,m6)
+  
+  # e) Validación e interpretación del modelo final
+
+  # Alternativamente podemos hacer un dredge
+  ms1 <- dredge(m1, trace = TRUE, rank = "AICc", REML = FALSE)
+  fmList <- get.models(ms1, 1:4)
+  summary(model.avg(fmList))
+
+
+kk <- lm(pctnpoll ~ leng, data=data.mom)
+anova(m1)
+summary(m1)
+par(mfrow=c(2,2))
+plot(m1)
+
+
+# AICw
+library(lme4); library(nlme) 
+library(RVAideMemoire); library(glmmADMB); library(AICcmodavg); library(MuMIn)
+
+cands.gr <- list(m1,m2,m3,m4,m5,m6)  
+Modnames.gr <- c("total","no zone inter","no dbh inter","buf15+dbh","dbh","null")
+aictab(cand.set = cands.gr, modnames = Modnames.gr)
+confset(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE, method='ordinal')
+evidence(aictab(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE))
+```
+
+```{r model selection family binomial}
+
+library(lme4)
+# c) Ajuste de la estructura óptima para el componente fijo (hay que hacerlo con LM)
+
+#Rescale and center continuous parameters
+data.mom.scl <- data.mom
+data.mom.scl$dbh <- scale(data.mom.scl$dbh)
+data.mom.scl$buf15 <- scale(data.mom.scl$buf15)
+
+m1 <- glmer(cbind(pctnpoll,nembr_wo_unass-pctnpoll) ~ buf15*dbh+zone+zone:buf15 +
+              (1|pop), family = binomial, data= data.mom.scl,
+              control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m1)
+
+m2 <- update(m1, ~.-buf15:zone, data= data.mom.scl)
+anova(m1,m2) 
+summary(m2)
+m3 <- update(m2, ~.-buf15:dbh, data= data.mom.scl)
+anova(m2,m3)
+summary(m3)
+m4 <- update(m3, ~.-zone, data= data.mom.scl)
+anova(m3,m4)
+summary(m4)
+m5 <- update(m4, ~.-dbh, data= data.mom.scl)
+anova(m4,m5)
+summary(m5)
+m6 <- update(m5, ~.-buf15, data= data.mom.scl)
+anova(m5,m6)
+summary(m6)
+      # buf15 es significativo
+
+# d) Ajuste del modelo final 
+m1 <- glmer(cbind(pctnpoll,nembr_wo_unass-pctnpoll) ~ buf15+dbh +
+              (1|pop), family = binomial, data= data.mom.scl,
+              control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(m1)
+
+# e) AICw
+cands.gr <- list(m1,m2,m3,m4,m5,m6)  
+Modnames.gr <- c("saturated", "no zone inter","no dbh inter","buf15+dbh","buf15","null")
+aictab(cand.set=cands.gr, modnames = Modnames.gr, second.ord=TRUE)
+confset(cand.set=cands.gr, modnames = Modnames.gr, second.ord=FALSE, method='ordinal')
+evidence(aictab(cand.set=cands, modnames = Modnames, second.ord=FALSE))
+
+    
+# f) Validación e interpretación del modelo final
+    res <- residuals(m.final)
+    fit <- fitted(m.final)
+    par(mfrow=c(2,2))
+    plot(res ~ fit, xlab="Fitted values", ylab="Residuals", main="Residuals vs. fitted")
+    abline(h=0)
+    boxplot(res ~ data.mom$pop, ylab="Residuals", main="Populations")
+    abline(h=0, lty=3)
+    hist(res, main="Histogram of residuals", xlab="Residuals")
+    qqnorm(res)
+    qqline(res)
+    
+```
+

@@ -1,0 +1,135 @@
+---
+title: "GLM_Cervus_and_dispersal_kernel"
+author: "EvaM"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Once CERVUS has provided results on paternity assignments, we first get spatial distances among tree pairs experiencing pollination events (assignments)
+
+```{r pairs distances, include=FALSE}
+dist <- read.table("pairs_EucDist.txt", header=TRUE, sep="\t", dec=".", na.strings=".")
+head(dist)
+
+asig <- read.table("assigned_pairs_allPop.txt", header=TRUE, sep="\t", dec=".", na.strings=".")
+head(asig)
+
+library(dplyr)
+
+# Join distance mother-father to assignments provided by Cervus
+dist <- dist %>%
+  mutate(pair = paste(mother,father)) %>%
+  mutate(pop = substr(mother,1,2))
+
+asig <- asig %>%
+  mutate(pair = paste(mother,father))
+
+asig_join <- left_join(asig, dist, by = "pair") %>%
+  select(offspring, mother.x, father.x, SpDist) %>%
+  rename(mother = mother.x , father = father.x) %>%
+  mutate(pop = str_sub(offspring,start = 1,end =2)) %>%
+  mutate(pop = if_else(pop == "4S", "SAUC", pop)) %>%
+  mutate(pop = if_else(pop == "S0", "PL", pop)) %>%
+  mutate(pop = if_else(pop == "Z0", "ZAP", pop))
+
+write.csv(asig_join, file="pair_distances.csv")
+
+# Get maximum pair distance in each pop
+max_dist <- dist %>%
+  group_by(pop) %>%
+  summarise(max_dist = max(SpDist))
+
+```
+
+Then, we run the code to draw the dispersal kernel (Kernel_Cervus.R)
+
+```{r Graphic kernel dispersal Cervus 4 pop}
+#Description: Gráfica para el póster de Ávila con el número de eventos polinizadores por clases de distancias con Cervus de las 4 poblaciones (JV, S1, S2, ZP).
+
+dist <- asig_join
+attach(dist)
+detach(dist)
+str(dist)
+head(dist)
+tail(dist)
+summary(dist)
+
+median(dist$SpDist[dist$pop=='JV'])
+median(dist$SpDist[dist$pop=='SAUC'])
+median(dist$SpDist[dist$pop=='PL'])
+median(dist$SpDist[dist$pop=='ZAP'])
+
+mean(dist$SpDist[dist$pop=='JV'])
+mean(dist$SpDist[dist$pop=='SAUC'])
+mean(dist$SpDist[dist$pop=='PL'])
+mean(dist$SpDist[dist$pop=='ZAP'])
+
+#################
+# ALL POPULATIONS TOGETHER #
+#################
+
+# Para pasar de la variable continua spDist a variable con intervalos:
+distFactor <- cut(round(dist$SpDist), breaks=seq(0,1350,75), include.lowest=TRUE, right=FALSE)
+
+# Unir mi tabla input con la nueva columna creada de la clases de distancias:
+dist <- cbind(dist, distFactor)
+str(dist)
+
+# Counts at each combination of factor levels :
+dist.pop <- table(dist$pop, dist$distFactor)
+margin.table (dist.pop, 2) # Suma total de cada clase de distancia, incluyendo las 4 pop juntas.
+sum(margin.table (dist.pop, 2))
+
+# Representación gráfica:
+barplot(dist.pop, legend.text=rownames(dist.pop), col=c("blue", "green", "gold", "red"), border=T, main= "Dispersal Kernel", xlab="Distance (m)", ylab= "Polinization events", ylim=c(0,300)) # Cada barra dividida por pop.
+	# bg="cornsilk" (colour name). Add this argument if I want some background colour.
+
+barplot(dist.pop, beside=T) # Cada pop. representada en cada clase de distancia
+barplot(dist.pop, beside=T, legend.text=rownames(dist.pop), col=c("blue", "green", "gold", "red"), border=T, main= "Dispersal Kernel", xlab="Distance (m)", ylab= "Polinization events", ylim=c(0,150))
+
+barplot(dist.pop, beside=T, col=c("white", "grey80", "grey50", "black"), border=T,
+        legend.text=rownames(dist.pop), 
+        main= "Dispersal Kernel", xlab="Distance (m)", 
+        ylab= "Polinization events", ylim=c(0,150),cex.names = 0.5,
+        names.arg=c('75','150','225','300','375','450','525','600','675','750','825','900','975','1050','1125','1200','1275','1350'))
+
+#################
+# BY POPULATION #
+#################
+library(plotrix)
+
+dist.JV <- subset(dist, pop == "JV")
+dist.SAUC <- subset(dist, pop == "SAUC")
+dist.PL <- subset(dist, pop == "PL")
+dist.ZAP <- subset(dist, pop == "ZAP")
+
+opar<-par(mfrow=c(2,2),mex=0.6,mar=c(5,5,3,2)+.3)
+# Juan Vela:
+hist(dist.JV$SpDist, breaks=seq(0,1600,10), freq=TRUE, col="blue",
+     main="Juan Vela", xlab="distance (m)", ylab="Number of mating events",
+     ylim=c(0,50), xaxp=c(0,1500,6))
+rug(dist.JV$SpDist, ticksize=0.025, lwd=0.3)
+axis.break(axis=1, breakpos=1500, style="slash", brw=0.01)
+
+# La Sauceda4:
+hist(dist.SAUC$SpDist, breaks=seq(0,1600,10), freq=TRUE, col="gold", main="La Sauceda", 
+     xlab="distance (m)", ylab="Number of mating events", ylim=c(0,20), xaxp=c(0,1500,6))
+rug(dist.SAUC$SpDist, ticksize=0.025, lwd=0.3)
+axis.break(axis=1, breakpos=1500, style="slash", brw=0.01)
+
+# Pasada Llana:
+hist(dist.PL$SpDist, breaks=seq(0,1600,10), freq=TRUE, col="green", main="Pasada Llana", 
+     xlab="distance (m)", ylab="Number of mating events", 
+     ylim=c(0,30), xaxp=c(0,1500,6))
+rug(dist.PL$SpDist, ticksize=0.025, lwd=0.3)
+axis.break(axis=1, breakpos=1500, style="slash", brw=0.01)
+
+# El Zapato:
+hist(dist.ZAP$SpDist, breaks=seq(0,1600,10), freq=TRUE, col="red", main="El Zapato", 
+     xlab="distance (m)", ylab="Number of mating events", ylim=c(0,50), xaxp=c(0,1500,6))
+rug(dist.ZAP$SpDist, ticksize=0.025, lwd=0.3)
+axis.break(axis=1, breakpos=1500, style="slash", brw=0.01)
+
+```
+
+
