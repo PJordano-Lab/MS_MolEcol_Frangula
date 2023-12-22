@@ -508,6 +508,17 @@ assort(mat.SAUC)
 assort(mat.PL)
 assort(mat.ZP)
 
+
+
 ```
 
+### Correlates network parameters
 
+```{r netwk_corr}
+netwkparams<- read.table("data/network_params.txt", header=T, sep="\t", dec=".", 
+                         na.strings="NA")
+
+cor(netwkparams[,2:8], use = "everything",
+    method = "kendall")
+
+```
