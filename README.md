@@ -1,4 +1,4 @@
-# Dataset and code acompanying Moracho et al. 2024. Molecular Ecology. 
+# Dataset and code accompanying Moracho et al. 2024. Molecular Ecology. 
 ## Highly clustered mating networks in naturally-fragmented riparian tree populations
 
 MS_Frangula alnus re-analysis (2023). Data and code.
